@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
   <script src="theme.js"></script>
+  <script src="chart.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -88,6 +89,23 @@
       </div>
     </nav>
 
+    <section class="shell timeline" aria-labelledby="timelineTitle">
+      <figure class="chart-card" id="chartCard">
+        <header class="chart-head">
+          <div>
+            <h2 id="timelineTitle">News per day</h2>
+            <p class="chart-sub" id="chartSub">Articles stored, by publication date</p>
+          </div>
+          <button class="link-btn" id="chartTableToggle" type="button" aria-pressed="false" aria-controls="chartTable">Show as table</button>
+        </header>
+        <ul class="chart-legend" id="chartLegend" aria-label="Topics — select one to filter"></ul>
+        <div class="chart-plot" id="chartPlot"></div>
+        <div class="chart-table" id="chartTable" hidden></div>
+        <div class="chart-tip" id="chartTip" role="status" aria-live="polite" hidden></div>
+        <figcaption class="visually-hidden" id="chartCaption"></figcaption>
+      </figure>
+    </section>
+
     <div class="shell layout">
       <aside class="sidebar" aria-label="Refine">
         <details class="panel" id="sourcesPanel" open>
@@ -116,7 +134,7 @@
   <footer class="footer">
     <div class="shell footer-inner">
       <p>Summaries come from publisher feeds, article pages or Claude — always validate against the original advisory before acting.</p>
-      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v3.4</span></a></p>
+      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v4.0</span></a></p>
     </div>
   </footer>
 
@@ -177,6 +195,11 @@
         </dl>
         <p class="hint">Stopping is safe: the app lets a running refresh finish and flushes the database first. Back up by copying the <code>data</code> folder, or run <code>python3 server.py --backup backup.db</code> (Docker: <code>docker compose exec pulse python server.py --backup /app/data/backup.db</code>).</p>
       </section>
+      <section class="about-block" aria-labelledby="aboutLogTitle">
+        <h3 id="aboutLogTitle">Refresh log</h3>
+        <p>Every refresh — <strong>manual</strong> (all, one or several sources) and <strong>automatic</strong> — adds one line to <code id="aboutLogFile">data/refresh.log</code> (next to the database, kept across restarts). Each line gives the date and time it ran, which kind of refresh it was, the result, how many new articles it brought, how long it took, the new articles per source, and any errors. Skipped, postponed or interrupted runs are logged too. Latest first:</p>
+        <pre class="log-lines" id="aboutLog">No refresh has run yet.</pre>
+      </section>
       <div class="about-cols">
         <section class="about-block">
           <h3>How news is refreshed</h3>
@@ -198,6 +221,8 @@
         <section class="about-block">
           <h3>What’s new</h3>
           <ul>
+            <li><strong>4.0</strong>: refresh log — every manual and automatic refresh adds a line to <code>data/refresh.log</code> with its date and time and the number of new articles per source.</li>
+            <li><strong>3.5</strong>: “News per day” chart — stored articles per day (per hour for 24 hours), by topic, following the time and topic filters.</li>
             <li><strong>3.4</strong>: a refresh brings only news never collected before, and afterwards shows just those new articles.</li>
             <li><strong>3.3</strong>: automatic daily refresh (default 02:00) alongside manual refreshes; exact database size in bytes, KB, MB and GB.</li>
             <li><strong>3.2</strong>: “i” buttons explain each statistic at the top of the page.</li>

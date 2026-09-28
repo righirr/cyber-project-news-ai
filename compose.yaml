@@ -4,6 +4,8 @@
 #   docker compose up -d --build
 #   open http://192.168.3.100:8000
 #
+# The refresh log (one line per manual or automatic refresh) lives next to it in
+# ./data/refresh.log, so it is kept across `docker compose down` / `up` as well.
 # Collected news is stored on the host in ./data/pulse.db — the same database that
 # `python3 server.py` uses — so it survives `docker compose down`, rebuilds, image
 # updates and even `docker compose down -v`. Back it up by copying that folder, or with:
@@ -13,7 +15,7 @@ name: cyber-intel-pulse
 services:
   pulse:
     build: .
-    image: cyber-intel-pulse:3.4.0
+    image: cyber-intel-pulse:4.0.0
     container_name: cyber-intel-pulse
     restart: unless-stopped
     # Run as the owner of ./data (your login user) so the database files stay yours.

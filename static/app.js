@@ -162,6 +162,18 @@ function renderStorage(storage) {
   $('#aboutLocation').textContent = storage.location;
 }
 
+async function loadRefreshLog() {
+  try {
+    const data = await api('/api/refresh-log?lines=10');
+    if (data.file) $('#aboutLogFile').textContent = `data/${data.file}`;
+    $('#aboutLog').textContent = data.entries.length
+      ? data.entries.join('\n')  // newest first
+      : 'No refresh has run yet. The first line appears after the next manual or automatic refresh.';
+  } catch (error) {
+    $('#aboutLog').textContent = `Could not read the log: ${error.message}`;
+  }
+}
+
 function describeNextRun(iso) {
   const when = new Date(iso);
   const today = new Date();
@@ -224,6 +236,7 @@ async function loadArticles({ append = false } = {}) {
   writeUrl();
   const grid = $('#grid');
   grid.setAttribute('aria-busy', 'true');
+  if (!append) NewsChart.loading();  // keep the previous chart, dimmed, while data reloads
   if (!append && !grid.children.length) grid.replaceChildren(...Array.from({ length: 6 }, () => el('div', { class: 'card skeleton' })));
   let data;
   try {
@@ -239,6 +252,13 @@ async function loadArticles({ append = false } = {}) {
   state.facets = data.facets;
   state.articles = append ? state.articles.concat(data.articles) : data.articles;
   renderArticles(data.articles, append);
+  if (!append) {
+    NewsChart.render({
+      histogram: data.histogram, range: state.range, rangeStart: data.range_start, facets: data.facets,
+      topic: state.topic, filtered: Boolean(state.q || state.topic || state.sources.size || state.newRun),
+      onTopic: topic => setTopic(topic),
+    });
+  }
   renderFacets();
   renderCloud(data.terms);
   renderActiveFilters();
@@ -670,6 +690,7 @@ function wire() {
   $('#setAuto').addEventListener('change', event => { $('#setAutoTime').disabled = !event.target.checked; });
   $('#openAbout').addEventListener('click', () => {
     loadStatus().catch(() => {});  // refresh the live storage figures
+    loadRefreshLog();
     $('#aboutDialog').showModal();
   });
   for (const dialog of document.querySelectorAll('dialog')) {
@@ -696,6 +717,7 @@ async function init() {
   readUrl();
   renderRange();
   wire();
+  NewsChart.init();
   try {
     await Promise.all([loadStatus(), loadSources()]);
   } catch (error) {

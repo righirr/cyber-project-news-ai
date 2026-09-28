@@ -179,9 +179,10 @@ class Collector:
 class Jobs:
     """Runs one collection at a time in a background thread; clients poll for progress."""
 
-    def __init__(self, collector, store):
+    def __init__(self, collector, store, refresh_log=None):
         self.collector = collector
         self.store = store
+        self.refresh_log = refresh_log  # every finished refresh, manual or automatic, gets one log line
         self._lock = threading.Lock()
         self._jobs = {}
         self._threads = []
@@ -245,10 +246,26 @@ class Jobs:
             if total:
                 self._update(job, None, phase='briefing')
                 self.collector.refresh_briefing()
-            self._update(job, None, status='done', phase='done', finished_at=now_iso())
+            self._finish(job, status='done', phase='done', finished_at=now_iso())
         except Exception as exc:
             log.exception('Collection job failed')
-            self._update(job, None, status='failed', phase='failed', error=str(exc), finished_at=now_iso())
+            self._finish(job, status='failed', phase='failed', error=str(exc), finished_at=now_iso())
+
+    def _finish(self, job, **final):
+        """Write the log line first, then mark the job finished — so "finished" always means "logged"."""
+        if self.refresh_log:
+            self.refresh_log.job({**self.get(job['id']), **final})
+        self._update(job, None, **final)
+
+    def log_unfinished(self):
+        """On shutdown: log refreshes that are still running and are about to be cut off."""
+        if not self.refresh_log:
+            return
+        with self._lock:
+            running = [copy.deepcopy(j) for j in self._jobs.values() if j['status'] == 'running']
+        for job in running:
+            self.refresh_log.event('interrupted', 'the application stopped before the refresh finished',
+                                   kind=self.refresh_log.kind(job['scope']))
 
 
 def briefing_for(store, ai):

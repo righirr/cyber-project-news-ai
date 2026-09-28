@@ -37,6 +37,7 @@ def main():
     # Imported after .env is loaded so every module sees those settings.
     from pulse.ai import Claude
     from pulse.collector import Collector, Jobs
+    from pulse.refreshlog import RefreshLog
     from pulse.scheduler import DailyScheduler
     from pulse.store import Store
     from pulse.web import WILDCARD_HOSTS, App, make_server, primary_address
@@ -66,9 +67,10 @@ def main():
         return
     ai = Claude()
     storage_label = os.environ.get('PULSE_STORAGE_LABEL') or _display_path(db_path)
-    jobs = Jobs(Collector(store, ai), store)
-    scheduler = DailyScheduler(store, jobs)
-    app = App(store, ai, jobs, storage_label=storage_label, scheduler=scheduler)
+    refresh_log = RefreshLog(os.environ.get('PULSE_REFRESH_LOG') or db_path.parent / 'refresh.log')
+    jobs = Jobs(Collector(store, ai), store, refresh_log=refresh_log)
+    scheduler = DailyScheduler(store, jobs, refresh_log=refresh_log)
+    app = App(store, ai, jobs, storage_label=storage_label, scheduler=scheduler, refresh_log=refresh_log)
     try:
         server = make_server(app, host=args.host, port=args.port, allowed_hosts=allowed)
     except OSError as exc:
@@ -104,6 +106,7 @@ def main():
             print(f'  Automatic refresh: daily at {auto["time"]} ({auto["timezone"]}) — next run {upcoming:%a %d %b %H:%M}')
         else:
             print('  Automatic refresh: off (turn it on in Manage sources)')
+        print(f'  Refresh log (manual and automatic): {_display_path(refresh_log.path)}')
         print(f'  Claude enrichment: {ai.reason}' + (f' ({ai.model})' if ai.enabled else ''))
         if ai.hint:
             print('  ' + ai.hint.replace('\n', '\n  '))
@@ -128,6 +131,9 @@ def shutdown(server, app, store):
         print('  Waiting up to 20 s for the running refresh to finish…')
         if not app.jobs.wait(20):
             print('  Refresh did not finish; articles saved so far are kept.')
+    app.jobs.log_unfinished()  # a refresh still running now is cut off: say so in the log
+    if app.scheduler:
+        app.scheduler.flush()  # record an automatic refresh that finished (or not) while stopping
     store.checkpoint()
     print(f'  Saved {store.storage_info()["articles"]} articles — they will be there on the next start.')
 

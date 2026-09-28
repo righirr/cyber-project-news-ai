@@ -1,5 +1,79 @@
 # Cyber Security News Powered by AI release notes
 
+## Version 4.0 — Refresh log
+
+Every refresh, whether **automatic** (the daily run) or **manual** (an analyst's *Refresh news*, for all, one or several sources), now appends one line to a plain-text log file, **`data/refresh.log`**. The file keeps a permanent record of when collection ran and how much new news it brought.
+
+### The log file
+
+- **Where:** `data/refresh.log`, in the same folder as the database. With Docker Compose that is the host's `./data` folder, so the log survives restarts, rebuilds and `docker compose down`, and can be read directly on the server (`cat data/refresh.log`, `tail -f data/refresh.log`, `grep automatic data/refresh.log`). Git ignores it. To store it elsewhere, set `PULSE_REFRESH_LOG`.
+- **One line per refresh**, with fields separated by `|`:
+  1. date and time it ran, in the server's time zone;
+  2. kind: `automatic refresh`, `manual refresh (all enabled sources)` or `manual refresh (selected sources)`;
+  3. result: `done` or `failed`;
+  4. **number of new articles** brought in;
+  5. duration;
+  6. new articles **per source** (`failed` for a source that couldn't be reached);
+  7. errors, or `none`.
+
+  Example:
+  `2026-09-28 02:00:04 -03 | automatic refresh | done | 12 new articles | 8.4 s | WIRED Security: 3, KrebsOnSecurity: 0, The Hacker News: 5, Dark Reading: 4, Google Threat Intelligence: 0, FortiGuard Labs: 0 | errors: none`
+- **Runs that didn't complete normally are logged too:**
+  - an automatic refresh *skipped* because no source is enabled;
+  - an automatic refresh *postponed* because a manual refresh was running (with the retry time);
+  - any refresh *interrupted* because the application was stopped while it was running.
+
+  Each appears exactly once, never duplicated.
+- **Persistent.** The log is never cleared: each refresh only *adds* a line. The file lives in the host folder `./data`, mounted into the container, so after `docker compose down` and `docker compose up` (or a reboot, or an image rebuild) the application still has every earlier line and keeps adding below them. Verified with the real sources: a container wrote its line, was removed completely, and a brand-new container showed that line in About and appended its own after it. The file stays owned by your user, not root.
+- **Safe and tidy.** Line breaks and `|` characters inside error messages are neutralised, so each refresh stays on one line. The file rotates to `refresh.log.1` beyond 5 MB (decades of daily entries). If the log can't be written, a warning is shown but the refresh itself is never affected.
+
+### In the application
+
+- The About dialog has a new **Refresh log** section showing the latest 10 lines, newest first, and where the file is.
+- The startup message shows the log location: `Refresh log (manual and automatic): data/refresh.log`.
+- New read-only API endpoint `GET /api/refresh-log?lines=N` returns the latest entries.
+
+### Verified
+
+- With the six real sources, one automatic refresh and two manual refreshes (one source, then all sources) each wrote exactly one correct line: 2, 1 and 0 new articles respectively.
+- Added 9 tests (85 in total), including one that restarts the logger on the same file and checks that earlier lines are kept and new ones appended.
+- The tests also cover the line format, per-source counts and errors, skipped, postponed and interrupted runs, exactly one line per run (including when the app stops while a refresh is finishing), manual refreshes, rotation, an unwritable log not breaking a refresh, and the log API.
+
+### Why a major version
+
+The application now keeps a second persistent file next to the database, recording its activity; operations and backups should include it. Everything else stays compatible: databases, settings and the Docker setup from 3.x work unchanged.
+
+## Version 3.5 — "News per day" chart
+
+The main page has a new **News per day** chart showing how many stored articles were published on each date, split by topic.
+
+### What it shows
+
+- **Linked to the time filter.**
+  - **24 hours:** one column per hour.
+  - **7 / 15 / 30 days:** one column per day. The window rolls back from now, so it includes today so far plus the earlier part of the first day; for example, 15 days shows 16 columns.
+  - **All collected:** one column per day from the first stored article, switching to one per week beyond 120 days.
+- **Linked to the other filters too.** Topic, source, search and "new from the last refresh" narrow the chart the same way they narrow the list, so **the chart's total always equals the article count of the list**. A test checks this for every range and filter.
+- **Columns stacked by topic**, with a **legend** giving each topic's count. Clicking a legend entry filters by that topic (the same as the topic chip); clicking it again shows all topics.
+- **Easy to read.**
+  - A subtitle states the total and the period, for example *30 articles published in the last 15 days, per day, by topic*.
+  - The value is written on top of each column; when columns are too dense, only the busiest one is labelled.
+  - Clean y-axis numbers and light gridlines; today's label is bold.
+  - Hovering over a column, or moving across columns with the ← / → keys, shows a tooltip with the exact date, the total, and the count per topic.
+  - **Show as table** switches to an accessible table with one row per day and a column per topic.
+- Works in dark and light themes and on phones.
+
+### Colours
+
+- Each topic keeps its hue family (AI Security violet, Vulnerability red, Threat Intel amber, Supply Chain teal, SecOps blue), in stronger shades suited to chart fills. The card edges in the article list use the same colours, so a topic looks the same everywhere.
+- The palette and the stacking order (Vulnerability, AI Security, Threat Intel, SecOps, Supply Chain, from the bottom up) were chosen by running a palette validator on both themes. No two touching colours are hard to tell apart, including for colour-blind readers (worst adjacent difference ΔE 19.5 in dark mode and 22.7 in light mode; 8 is the target). Two light-mode colours are below 3:1 contrast against white; the value labels and the table view cover that, as the method requires.
+
+### Engineering
+
+- New `static/chart.js`: a dependency-free SVG chart, with all text set through `textContent`.
+- The articles API now also returns per-hour, per-topic counts computed with the same filters as the list, plus the start of the time window.
+- Added 4 tests (76 in total). They cover chart totals matching the list for every range, per-hour/per-topic buckets, following the topic, source and search filters, and serving `chart.js`.
+
 ## Version 3.4 — Refresh brings only new news
 
 A refresh, whether manual or automatic, adds only articles that have never been collected before, and after a manual refresh the page now shows exactly those articles.

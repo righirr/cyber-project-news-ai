@@ -37,9 +37,23 @@ The container is published on `PULSE_BIND_IP:PULSE_PORT` (default `192.168.3.100
 - Stop: `docker compose down` (the news is kept, see below)
 - Logs: `docker compose logs -f`
 
+## News per day chart
+
+Under the filter bar, a stacked column chart shows how many stored articles were published each day (each hour for *24 hours*), by topic. It follows the time range and every other filter, so its total always matches the list. Click a legend entry to filter by topic, hover over a column for details, or use *Show as table*.
+
 ## Automatic daily refresh
 
 Besides manual refreshes, the app collects from all **enabled** sources once a day, by default at **02:00** server time, using the look-back window and each source's article limit. Turn it on or off and change the time in **Manage sources → Automatic refresh**. If the app was off at that time, the missed refresh runs once after it starts. With Docker, the container uses the host time zone (`/etc/localtime` is mounted). The next run is shown under the statistics and in About.
+
+## Refresh log
+
+Every refresh, manual or automatic, appends one line to **`data/refresh.log`**: date and time, kind of refresh, result, number of new articles, duration, new articles per source, and errors. For example:
+
+```
+2026-09-28 02:00:04 -03 | automatic refresh | done | 12 new articles | 8.4 s | WIRED Security: 3, ... | errors: none
+```
+
+Follow it with `tail -f data/refresh.log`; the latest lines are also shown in About. It rotates to `refresh.log.1` beyond 5 MB. Set `PULSE_REFRESH_LOG` to store it elsewhere.
 
 ## Your data is kept
 

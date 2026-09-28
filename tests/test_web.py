@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from pulse.collector import Collector, Jobs
+from pulse.refreshlog import RefreshLog
 from pulse.store import Store
 from pulse.web import App, make_server
 
@@ -23,7 +24,9 @@ class WebTests(unittest.TestCase):
         net = FakeNet({'https://blog.example/': (rss([
             ('&lt;img src=x onerror=alert(1)&gt; Evil exploit title', 'https://blog.example/1', 1, LONG)]), 'application/rss+xml')})
         cls.store = store
-        cls.server = make_server(App(store, NoAI(), Jobs(Collector(store, NoAI(), fetcher=net), store)), port=0)
+        log = RefreshLog(Path(cls.tmp.name) / 'refresh.log')
+        jobs = Jobs(Collector(store, NoAI(), fetcher=net), store, refresh_log=log)
+        cls.server = make_server(App(store, NoAI(), jobs, refresh_log=log), port=0)
         cls.port = cls.server.server_address[1]
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
 
@@ -53,6 +56,7 @@ class WebTests(unittest.TestCase):
     def test_only_allowlisted_static_files_are_served(self):
         self.assertEqual(self.request('GET', '/')[0], 200)
         self.assertEqual(self.request('GET', '/app.js')[0], 200)
+        self.assertEqual(self.request('GET', '/chart.js')[0], 200)
         for path in ['/.git/config', '/server.py', '/pulse/web.py', '/data/pulse.db', '/../etc/passwd',
                      '/static/index.html', '/%2e%2e/server.py']:
             with self.subTest(path=path):
@@ -97,6 +101,10 @@ class WebTests(unittest.TestCase):
         self.assertNotIn('<img', data['articles'][0]['title'])  # markup stripped server-side too
         self.assertEqual(self.request('GET', '/api/refresh/999')[0], 404)
         self.assertEqual(self.request('GET', '/api/status')[1]['articles_total'], 1)
+        log = self.request('GET', '/api/refresh-log')
+        self.assertEqual(log[0], 200)
+        self.assertEqual(len(log[1]['entries']), 1)  # the manual refresh above was logged
+        self.assertIn('manual refresh (all enabled sources) | done | 1 new article', log[1]['entries'][0])
 
 
 if __name__ == '__main__':

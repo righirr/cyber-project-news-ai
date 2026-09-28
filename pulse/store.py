@@ -305,6 +305,12 @@ class Store:
                         f'SELECT a.{column}, COUNT(*) {base} WHERE {fw} GROUP BY a.{column}', fp)}
                 sample = db.execute(f'SELECT a.title, a.summary {base} WHERE {where} '
                                     'ORDER BY a.published_at DESC LIMIT 600', params).fetchall()
+                # Per-hour, per-topic counts (UTC hour) for the "news per day" chart; the browser
+                # groups them into local days or hours. Same filters as the list, so totals agree.
+                histogram = [] if offset else [
+                    {'hour': r[0], 'topic': r[1], 'count': r[2]} for r in db.execute(
+                        f'SELECT substr(a.published_at, 1, 13), a.topic, COUNT(*) {base} WHERE {where} '
+                        'GROUP BY 1, 2 ORDER BY 1', params)]
             except sqlite3.OperationalError as exc:
                 if 'fts5' in str(exc).lower() or 'syntax' in str(exc).lower():
                     raise ValueError('Could not understand the search query') from exc
@@ -316,6 +322,8 @@ class Store:
             'sort': sort,
             'facets': {'topics': facets['topic'], 'sources': facets['source_name']},
             'terms': trending_terms([(r['title'], r['summary']) for r in sample]),
+            'histogram': histogram,
+            'range_start': iso(datetime.now(timezone.utc) - RANGES[time_range]) if RANGES[time_range] else None,
         }
 
     def recent(self, hours=48, limit=60):

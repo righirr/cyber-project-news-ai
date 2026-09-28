@@ -22,6 +22,7 @@ STATIC_FILES = {
     '/': STATIC / 'index.html',
     '/index.html': STATIC / 'index.html',
     '/app.js': STATIC / 'app.js',
+    '/chart.js': STATIC / 'chart.js',
     '/theme.js': STATIC / 'theme.js',
     '/styles.css': STATIC / 'styles.css',
     '/favicon.svg': STATIC / 'favicon.svg',
@@ -272,6 +273,11 @@ class Handler(BaseHTTPRequestHandler):
             raise ApiError(404, 'Unknown collection job')
         self.send_json(200, job)
 
+    def api_refresh_log(self, query):
+        log = self.app.refresh_log
+        self.send_json(200, {'file': log.path.name if log else None,
+                             'entries': log.tail(_int(query.get('lines', 20), 'lines', 1, 200)) if log else []})
+
     def api_briefing(self, query):
         self.send_json(200, briefing_for(self.app.store, self.app.ai) or {'kind': 'empty'})
 
@@ -284,12 +290,14 @@ ROUTES = [
     ('POST', r'/api/refresh', Handler.api_refresh),
     ('GET', r'/api/refresh/(\d+)', Handler.api_job),
     ('GET', r'/api/briefing', Handler.api_briefing),
+    ('GET', r'/api/refresh-log', Handler.api_refresh_log),
 ]
 
 
 class App:
-    def __init__(self, store, ai, jobs, storage_label='data/pulse.db', scheduler=None):
+    def __init__(self, store, ai, jobs, storage_label='data/pulse.db', scheduler=None, refresh_log=None):
         self.store, self.ai, self.jobs, self.scheduler = store, ai, jobs, scheduler
+        self.refresh_log = refresh_log
         self.storage_label = storage_label  # shown in About; never the full host path
 
 

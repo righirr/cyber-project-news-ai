@@ -48,9 +48,12 @@ def next_slot_after(moment, at):
 
 
 class DailyScheduler:
-    def __init__(self, store, jobs, now=local_now, startup_delay=30, retry_delay=300):
+    def __init__(self, store, jobs, now=local_now, startup_delay=30, retry_delay=300, refresh_log=None):
         self.store = store
         self.jobs = jobs
+        self.refresh_log = refresh_log  # for runs without a job (skipped/postponed/crash-interrupted)
+        self._watching = None           # id of the automatic job in progress
+        self._record_lock = threading.Lock()
         self.now = now
         self.startup_delay = startup_delay
         self.retry_delay = retry_delay
@@ -88,6 +91,8 @@ class DailyScheduler:
             self.rebaseline()
         if self._state().get('status') == 'running':  # the app stopped during an automatic refresh
             self._save_state(status='interrupted', finished_at=now_iso())
+            if self.refresh_log:
+                self.refresh_log.event('interrupted', 'the application stopped before the refresh finished')
 
     def settings_changed(self):
         self.rebaseline()
@@ -130,41 +135,63 @@ class DailyScheduler:
         if not sources:
             self._save_state(slot=slot.isoformat(), started_at=now_iso(), finished_at=now_iso(),
                              status='skipped', added=0, errors=['No enabled sources'])
+            if self.refresh_log:
+                self.refresh_log.event('skipped', 'no enabled sources')
             return None
         try:
             job = self.jobs.start(sources, settings['lookback_days'], 'scheduled')
         except Busy:
             self._retry_at = now + timedelta(seconds=self.retry_delay)
             log.info('Automatic refresh postponed: a refresh is already running')
+            if self.refresh_log:
+                self.refresh_log.event('postponed', 'a manual refresh was running; retrying at '
+                                       + self._retry_at.strftime('%H:%M'))
             return None
         self._retry_at = None
         # Mark the slot as taken immediately so a crash or restart cannot repeat it.
         self._save_state(slot=slot.isoformat(), started_at=job['started_at'], finished_at=None,
                          status='running', added=0, errors=[], job_id=job['id'])
         log.warning('Automatic daily refresh started for %d sources', len(sources))
+        self._watching = job['id']
         return job
 
     def record_result(self, job_id):
-        job = self.jobs.get(job_id)
-        if not job or job['status'] == 'running':
-            return False
+        with self._record_lock:  # the loop and shutdown may both try; record (and log) exactly once
+            if self._watching and self._watching != job_id:
+                return False
+            job = self.jobs.get(job_id)
+            if not job or job['status'] == 'running':
+                return False
+            state = self._state()
+            if state.get('job_id') == job_id and state.get('status') in ('done', 'failed'):
+                return True  # already recorded
+            self._record(job, job_id)
+            return True
+
+    def _record(self, job, job_id):
         self._save_state(finished_at=job['finished_at'], status=job['status'], added=job['added'],
                          errors=[f"{s['name']}: {s['error']}" for s in job['sources'] if s['state'] == 'error'])
-        return True
+        # The finished job itself is written to the refresh log by Jobs (same as manual refreshes).
+        if self._watching == job_id:
+            self._watching = None
+
+    def flush(self):
+        """On shutdown, after waiting for jobs: record a run that finished while stopping, or mark
+        it interrupted now (Jobs logs that), so the next start does not log it a second time."""
+        if self._watching and not self.record_result(self._watching):
+            self._save_state(status='interrupted', finished_at=now_iso())
+            self._watching = None
 
     def _loop(self):
         self.initialize()
         self._stop.wait(self.startup_delay)
-        watching = None
         while not self._stop.is_set():
             try:
-                if watching and self.record_result(watching):
-                    watching = None
-                job = self.run_if_due()
-                if job:
-                    watching = job['id']
+                if self._watching:
+                    self.record_result(self._watching)
+                self.run_if_due()
                 upcoming = self.next_run()
-                wait = 5 if watching else 3600
+                wait = 5 if self._watching else 3600
                 if upcoming:
                     wait = min(wait, max(1, (upcoming - self.now()).total_seconds()))
             except Exception:
