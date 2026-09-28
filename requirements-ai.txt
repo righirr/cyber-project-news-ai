@@ -1,0 +1,3 @@
+# Optional: enables Claude summaries, classification and briefings.
+# The application runs without it using only the Python standard library.
+anthropic

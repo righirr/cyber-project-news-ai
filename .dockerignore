@@ -1,0 +1,13 @@
+.git
+.gitignore
+.venv
+.env
+data
+**/__pycache__
+**/*.py[cod]
+tests
+Dockerfile
+compose.yaml
+.dockerignore
+*.db
+*.db-*

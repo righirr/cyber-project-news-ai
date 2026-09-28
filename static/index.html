@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="A searchable cyber security and AI threat intelligence briefing for security practitioners.">
+  <title>Cyber Security News Powered by AI</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#feed">Skip to news</a>
+
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="./" aria-label="Cyber Security News Powered by AI — home">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.5 5.1 13.4 12 15 6.9-1.6 12-7.5 12-15V7L16 2Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 17h4l2-5 4 9 2-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="brand-text"><strong>Cyber Security News</strong><span class="ai-badge" id="aiBadge" title="">Powered by AI</span></span>
+      </a>
+      <form class="search" id="searchForm" role="search">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="m14 14 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <label class="visually-hidden" for="search">Search articles, keywords or sources</label>
+        <input id="search" type="search" autocomplete="off" spellcheck="false" placeholder="Search words, “exact phrases”, CVEs or sources…">
+        <kbd aria-hidden="true">/</kbd>
+      </form>
+      <div class="top-actions">
+        <div class="menu" id="collectMenu">
+          <button class="btn btn-primary" id="collectButton" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="collectOptions">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 10a6 6 0 1 1-1.8-4.3M16 3v4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="collectLabel">Refresh news</span>
+            <svg class="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <div class="menu-panel" id="collectOptions" role="menu" hidden></div>
+        </div>
+        <button class="icon-btn" id="openSources" type="button" title="Manage sources" aria-label="Manage sources">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="7" cy="5" r="2" fill="var(--bg)" stroke="currentColor" stroke-width="2"/><circle cx="13" cy="10" r="2" fill="var(--bg)" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="15" r="2" fill="var(--bg)" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button class="icon-btn" id="themeToggle" type="button" aria-label="Switch colour theme">
+          <svg class="i-sun" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M4 4l1.4 1.4M14.6 14.6 16 16M4 16l1.4-1.4M14.6 5.4 16 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <svg class="i-moon" viewBox="0 0 20 20" aria-hidden="true"><path d="M16.5 12.5A7 7 0 0 1 7.5 3.5a7 7 0 1 0 9 9Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn" id="openAbout" type="button" title="About" aria-label="About this application">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9v5M10 6h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="shell hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow" id="today"></p>
+          <h1>Signal over <span class="grad">noise.</span></h1>
+          <p class="deck" id="deck">Security reporting from the sources you choose, summarised, classified and indexed so you can find what matters.</p>
+        </div>
+        <dl class="stats" id="stats" aria-label="Collection statistics">
+          <div class="stat"><dt>Last 24 hours<button class="info-btn" type="button" aria-label="What does Last 24 hours mean?" aria-expanded="false" aria-describedby="tip-24h">i</button><span class="info-tip" id="tip-24h" role="tooltip">Articles <strong>published</strong> in the past 24 hours, according to each source’s own date, counted across all the news stored here. It is not affected by the filters below; use the “24 hours” filter to list them.</span></dt><dd id="stat24h">–</dd></div>
+          <div class="stat"><dt>Last 7 days<button class="info-btn" type="button" aria-label="What does Last 7 days mean?" aria-expanded="false" aria-describedby="tip-7d">i</button><span class="info-tip" id="tip-7d" role="tooltip">Articles <strong>published</strong> in the past 7 days (this includes the last 24 hours), counted across all stored news whatever filters are selected.</span></dt><dd id="stat7d">–</dd></div>
+          <div class="stat"><dt>Indexed articles<button class="info-btn" type="button" aria-label="What does Indexed articles mean?" aria-expanded="false" aria-describedby="tip-total">i</button><span class="info-tip" id="tip-total" role="tooltip">Every article saved in the database and searchable: all dates and all sources, including sources you have since disabled or removed. They are kept across restarts until you delete <code>data/pulse.db</code>.</span></dt><dd id="statTotal">–</dd></div>
+          <div class="stat"><dt>Active sources<button class="info-btn" type="button" aria-label="What does Active sources mean?" aria-expanded="false" aria-describedby="tip-sources">i</button><span class="info-tip" id="tip-sources" role="tooltip"><strong>Enabled</strong> sources out of all configured sources. <em>Refresh all enabled sources</em> collects from the enabled ones; a disabled source can still be refreshed on its own. Manage them with the sliders button at the top.</span></dt><dd id="statSources">–</dd></div>
+          <p class="stat-foot" id="lastRefresh"></p>
+          <p class="stat-foot auto-foot" id="autoRefreshFoot"></p>
+        </dl>
+      </div>
+    </section>
+
+    <section class="shell briefing" id="briefing" aria-labelledby="briefingTitle" hidden>
+      <div class="briefing-head">
+        <h2 id="briefingTitle">Today’s briefing</h2>
+        <span class="chip-static" id="briefingKind"></span>
+      </div>
+      <div class="briefing-grid" id="briefingGrid"></div>
+    </section>
+
+    <nav class="controls" aria-label="Filters">
+      <div class="shell controls-inner">
+        <div class="segmented" id="rangeFilter" role="group" aria-label="Published within"></div>
+        <div class="chips" id="topicFilter" role="group" aria-label="Topic"></div>
+        <label class="sort"><span class="visually-hidden">Sort by</span>
+          <select id="sort"><option value="">Best order</option><option value="newest">Newest first</option><option value="relevance">Most relevant</option></select>
+        </label>
+      </div>
+    </nav>
+
+    <div class="shell layout">
+      <aside class="sidebar" aria-label="Refine">
+        <details class="panel" id="sourcesPanel" open>
+          <summary><h2>Sources</h2><button class="link-btn" id="clearSources" type="button" hidden>Show all</button></summary>
+          <ul class="source-filter" id="sourceFilter"></ul>
+        </details>
+        <details class="panel" open>
+          <summary><h2>Trending</h2></summary>
+          <div class="cloud" id="cloud" aria-label="Trending words and expressions — select one to search"></div>
+        </details>
+      </aside>
+
+      <section class="feed" id="feed" aria-labelledby="feedTitle" tabindex="-1">
+        <div class="feed-head">
+          <h2 id="feedTitle">Intelligence queue</h2>
+          <p class="result-count" id="resultCount" aria-live="polite"></p>
+        </div>
+        <div class="active-filters" id="activeFilters"></div>
+        <div class="grid" id="grid" aria-busy="true"></div>
+        <div class="empty" id="empty" hidden></div>
+        <div class="more"><button class="btn btn-ghost" id="loadMore" type="button" hidden>Load more</button></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="shell footer-inner">
+      <p>Summaries come from publisher feeds, article pages or Claude — always validate against the original advisory before acting.</p>
+      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v3.3</span></a></p>
+    </div>
+  </footer>
+
+  <div class="progress" id="progress" role="status" aria-live="polite" hidden>
+    <div class="progress-head"><strong id="progressTitle">Collecting…</strong><button class="icon-btn small" id="closeProgress" type="button" aria-label="Dismiss">×</button></div>
+    <div class="progress-bar"><span id="progressBar"></span></div>
+    <ul class="progress-list" id="progressList"></ul>
+  </div>
+  <div class="toast" id="toast" role="alert" hidden></div>
+
+  <dialog class="dialog" id="chooseDialog" aria-labelledby="chooseTitle">
+    <form method="dialog" id="chooseForm">
+      <header class="dialog-head"><div><p class="eyebrow">Focused refresh</p><h2 id="chooseTitle">Choose sources to refresh</h2></div><button class="icon-btn" value="cancel" formnovalidate aria-label="Close">×</button></header>
+      <div class="dialog-body">
+        <div class="choose-tools"><button class="link-btn" type="button" id="chooseAll">Select all</button><button class="link-btn" type="button" id="chooseNone">Clear</button>
+          <label class="inline-field">Look back <input id="chooseDays" type="number" min="1" max="30" required> days</label></div>
+        <ul class="choose-list" id="chooseList"></ul>
+      </div>
+      <footer class="dialog-foot"><button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button><button class="btn btn-primary" id="chooseSubmit" value="go">Refresh</button></footer>
+    </form>
+  </dialog>
+
+  <dialog class="dialog wide" id="sourcesDialog" aria-labelledby="sourcesTitle">
+    <form id="sourcesForm">
+      <header class="dialog-head"><div><p class="eyebrow">Collection settings</p><h2 id="sourcesTitle">Manage sources</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">×</button></header>
+      <div class="dialog-body">
+        <div class="settings-row">
+          <label class="field">Default look-back (days)<input id="setLookback" type="number" min="1" max="30" required></label>
+          <label class="field">Articles per new source<input id="setDefaultItems" type="number" min="1" max="50" required></label>
+        </div>
+        <fieldset class="auto-refresh">
+          <legend>Automatic refresh</legend>
+          <label class="check"><input id="setAuto" type="checkbox"> Refresh all enabled sources automatically every day at</label>
+          <input id="setAutoTime" type="time" step="60" required aria-label="Daily refresh time (24-hour)">
+          <p class="hint" id="autoHint">Uses the look-back window above and each source’s article limit — exactly like <em>Refresh all enabled sources</em>. If the app is off at that time, the missed refresh runs once when it starts again.</p>
+        </fieldset>
+        <p class="hint">Enter a website, blog or feed address. Feeds are discovered automatically; if none exists, Google News is searched for that site. <strong>Filter off-topic</strong> drops stories without security relevance — useful for general-news sites.</p>
+        <div class="source-table" id="sourceTable" role="list"></div>
+        <div class="source-actions"><button class="btn btn-ghost" type="button" id="addSource">+ Add source</button><button class="link-btn danger" type="button" id="resetSources">Reset to defaults</button></div>
+        <p class="form-error" id="sourcesError" role="alert"></p>
+      </div>
+      <footer class="dialog-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Save sources</button></footer>
+    </form>
+  </dialog>
+
+  <dialog class="dialog wide" id="aboutDialog" aria-labelledby="aboutTitle">
+    <header class="dialog-head"><div><p class="eyebrow">About</p><h2 id="aboutTitle">Cyber Security News Powered by AI</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">×</button></header>
+    <div class="dialog-body">
+      <p class="about-intro">A local cyber-intelligence briefing. It collects recent reporting from the sources you configure, summarises and classifies each article, and stores everything in a full-text index you can search and filter by time, topic and source.</p>
+      <section class="about-block data-block" aria-labelledby="aboutDataTitle">
+        <h3 id="aboutDataTitle">Your data is kept</h3>
+        <p>Every collected article is saved in a SQLite database and is still there after you stop the app, restart it, reboot the server or rebuild the Docker image — no need to collect again.</p>
+        <dl class="data-facts">
+          <div><dt>Articles stored</dt><dd id="aboutArticles">–</dd></div>
+          <div><dt>Collected since</dt><dd id="aboutSince">–</dd></div>
+          <div><dt>Database size</dt><dd id="aboutSize">–</dd><dd class="sub" id="aboutBytes"></dd></div>
+          <div><dt>Location</dt><dd id="aboutLocation">–</dd></div>
+        </dl>
+        <p class="hint">Stopping is safe: the app lets a running refresh finish and flushes the database first. Back up by copying the <code>data</code> folder, or run <code>python3 server.py --backup backup.db</code> (Docker: <code>docker compose exec pulse python server.py --backup /app/data/backup.db</code>).</p>
+      </section>
+      <div class="about-cols">
+        <section class="about-block">
+          <h3>How news is refreshed</h3>
+          <ul>
+            <li><strong>Manually</strong>, by the analyst: <em>Refresh news</em> collects from all enabled sources, one source, or several chosen sources.</li>
+            <li><strong>Automatically</strong>, by the application: <span id="aboutAuto">once a day for all enabled sources</span>, using the look-back window and the per-source article limits from <em>Manage sources</em>.</li>
+            <li>Both add only articles not already stored, so nothing is duplicated.</li>
+          </ul>
+        </section>
+        <section class="about-block">
+          <h3>Running it</h3>
+          <ul>
+            <li><strong>Docker Compose</strong> (recommended): <code>docker compose up -d --build</code>. Published on your LAN address, by default <code>http://192.168.3.100:8000</code>. Settings go in <code>.env</code>.</li>
+            <li><strong>Python</strong>: <code>python3 server.py --host 192.168.3.100</code>. Use <code>127.0.0.1</code> for this machine only or <code>0.0.0.0</code> for every interface.</li>
+            <li>Both use the same <code>data</code> folder, so you can switch between them without losing news.</li>
+            <li>There is no login: anyone who can reach the address can use the app, so keep it on a trusted network.</li>
+          </ul>
+        </section>
+        <section class="about-block">
+          <h3>What’s new</h3>
+          <ul>
+            <li><strong>3.3</strong>: automatic daily refresh (default 02:00) alongside manual refreshes; exact database size in bytes, KB, MB and GB.</li>
+            <li><strong>3.2</strong>: “i” buttons explain each statistic at the top of the page.</li>
+            <li><strong>3.1</strong>: news is kept across restarts in the shared <code>./data</code> folder, clean shutdown, backups.</li>
+            <li><strong>3.0</strong>: LAN access, Docker Compose, <code>.env</code> settings, clearer Claude setup messages.</li>
+            <li><strong>2.0</strong>: Refresh one, several or all sources, full-text search, 24h–all time filters, summaries for every article, new design, security fixes.</li>
+          </ul>
+          <p class="hint"><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Full release notes ↗</a></p>
+        </section>
+      </div>
+      <div class="tech-grid">
+        <section><h3>Claude AI</h3><p id="aboutAi">Optional article summaries, topic classification, relevance filtering and the daily briefing.</p></section>
+        <section><h3>Python 3 service</h3><p>Standard-library HTTP API, SSRF-hardened feed fetching, parallel collection jobs.</p></section>
+        <section><h3>SQLite FTS5</h3><p>Persistent storage with a stemmed full-text index, highlights and relevance ranking.</p></section>
+        <section><h3>Vanilla web UI</h3><p>HTML, CSS and JavaScript with no build step, dark/light themes and keyboard support.</p></section>
+      </div>
+    </div>
+    <footer class="dialog-foot"><a class="btn btn-primary" href="https://github.com/righirr/cyber-security-news-system" target="_blank" rel="noopener noreferrer">View on GitHub ↗</a></footer>
+  </dialog>
+</body>
+</html>
