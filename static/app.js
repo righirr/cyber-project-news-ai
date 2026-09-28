@@ -22,6 +22,7 @@ const state = {
   q: '', range: '7d', topic: '', sources: new Set(), sort: '',
   offset: 0, total: 0, facets: { topics: {}, sources: {} }, articles: [],
   status: null, sourceConfig: [], settings: { lookback_days: 7, default_max_items: 10 },
+  newRun: null, newCount: 0,  // set after a refresh: show only the articles it added
 };
 const previousVisit = Number(storage.get('pulse.lastVisit')) || 0;
 let requestSeq = 0;
@@ -219,6 +220,7 @@ async function loadArticles({ append = false } = {}) {
   if (state.topic) params.set('topic', state.topic);
   if (state.sort) params.set('sort', state.sort);
   for (const s of state.sources) params.append('source', s);
+  if (state.newRun) params.set('run', state.newRun);
   writeUrl();
   const grid = $('#grid');
   grid.setAttribute('aria-busy', 'true');
@@ -349,6 +351,11 @@ function renderActiveFilters() {
   const pills = [];
   const pill = (label, onRemove) => el('span', { class: 'pill' }, label,
     el('button', { type: 'button', 'aria-label': `Remove filter ${label}`, onclick: onRemove }, '×'));
+  if (state.newRun) {
+    const newPill = pill(`Only the ${fmt(state.newCount)} new from the last refresh`, () => { clearNewOnly(); loadArticles(); });
+    newPill.classList.add('new');
+    pills.push(newPill);
+  }
   if (state.q) pills.push(pill(`Search: ${state.q}`, () => setQuery('')));
   if (state.topic) pills.push(pill(`Topic: ${state.topic}`, () => setTopic('')));
   for (const s of state.sources) pills.push(pill(`Source: ${s}`, () => { state.sources.delete(s); loadArticles(); }));
@@ -362,7 +369,16 @@ function setTopic(topic) { state.topic = topic; loadArticles(); }
 function setQuery(q) { state.q = q; $('#search').value = q; loadArticles(); }
 function clearFilters() {
   state.q = ''; state.topic = ''; state.sources.clear(); $('#search').value = '';
+  clearNewOnly();
   loadArticles();
+}
+
+function clearNewOnly() {
+  if (!state.newRun) return;
+  state.newRun = null;
+  state.newCount = 0;
+  state.range = '7d';
+  renderRange();
 }
 
 // ----- collection -----------------------------------------------------------
@@ -460,11 +476,23 @@ async function pollJob(id) {
   renderProgress(job);
   if (job.status === 'running') { setTimeout(() => pollJob(id), 700); return; }
   $('#collectButton').disabled = false;
+  const previous = state.status && state.status.last_refresh;  // the refresh before this one
+  const since = previous ? ` since the last refresh (${previous.scope === 'scheduled' ? 'automatic, ' : ''}${relativeTime(previous.at)})` : '';
   const failed = job.sources.filter(s => s.state === 'error').length;
+  const failedNote = failed ? ` · ${failed} source${failed === 1 ? '' : 's'} failed` : '';
   if (job.status === 'failed') toast(`Refresh failed: ${job.error}`, 'error');
-  else toast(`${fmt(job.added)} new article${job.added === 1 ? '' : 's'} indexed` + (failed ? ` · ${failed} source${failed === 1 ? '' : 's'} failed` : ''), failed ? 'error' : '');
+  else if (job.added) toast(`${fmt(job.added)} new article${job.added === 1 ? '' : 's'}${since} — showing only these${failedNote}`, failed ? 'error' : '');
+  else toast(`No new articles${since}: everything the sources published is already collected${failedNote}`, failed ? 'error' : '');
   if (!failed) setTimeout(() => { $('#progress').hidden = true; }, 6000);
   await Promise.all([loadStatus(), loadSources(), loadBriefing()]);
+  if (job.status === 'done' && job.added) {
+    // Show exactly what this refresh brought: the articles tagged with its run id.
+    state.newRun = job.run;
+    state.newCount = job.added;
+    state.q = ''; state.topic = ''; state.sources.clear(); $('#search').value = '';
+    state.range = 'all';
+    renderRange();
+  }
   loadArticles();
 }
 

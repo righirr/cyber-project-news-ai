@@ -220,6 +220,7 @@ svg { width: 18px; height: 18px; flex: none; }
 .active-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .active-filters:empty { display: none; }
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 11px; border-radius: 99px; background: var(--glow-a); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); font-size: 13px; color: var(--ink); }
+.pill.new { background: var(--glow-b); border-color: color-mix(in srgb, var(--accent-2) 45%, transparent); }
 .pill button { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 15px; line-height: 1; padding: 0 4px; border-radius: 99px; }
 .pill button:hover { color: var(--danger); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }

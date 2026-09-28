@@ -1,6 +1,7 @@
 """Collect articles from sources in parallel, summarise, classify and store them."""
 import copy
 import itertools
+import secrets
 import logging
 import threading
 import time
@@ -113,14 +114,15 @@ class Collector:
                           'published_at': iso(published), 'topic': classify(entry['title'], text)})
         items.sort(key=lambda i: i['published_at'], reverse=True)
         items = items[:source['max_items']]
-        known = self.store.known_urls(i['url'] for i in items)
-        new = [i for i in items if i['url'] not in known]
+        # Only articles not stored yet (by URL or by headline) are summarised and saved, so a
+        # refresh — manual or automatic — brings only news collected for the first time.
+        new = self.store.unknown(items)
         with ThreadPoolExecutor(max_workers=4) as pool:
             new = list(pool.map(self._summarise, new))
         return new, {'found': len(items), 'off_topic': off_topic, 'via': via, 'feed_url': feed_url}
 
     # ----- run -------------------------------------------------------------
-    def collect(self, sources, days, on_update=lambda *a, **k: None):
+    def collect(self, sources, days, on_update=lambda *a, **k: None, run_id=None):
         pending = []
 
         def run(source):
@@ -161,7 +163,7 @@ class Collector:
         added = {}
         for source in sources:
             batch = [i for i in pending if i['source_id'] == source['id']]
-            added[source['id']] = self.store.upsert_articles(batch)
+            added[source['id']] = self.store.upsert_articles(batch, run_id=run_id)
             on_update(source['id'], new=added[source['id']])
         return added
 
@@ -193,7 +195,8 @@ class Jobs:
             if self.running():
                 raise Busy('A collection is already running')
             job_id = str(next(self._ids))
-            job = {'id': job_id, 'status': 'running', 'phase': 'collecting', 'scope': scope, 'days': days,
+            job = {'id': job_id, 'run': f'{now_iso()}-{secrets.token_hex(4)}',  # tags the articles it adds
+                   'status': 'running', 'phase': 'collecting', 'scope': scope, 'days': days,
                    'started_at': now_iso(), 'finished_at': None, 'added': 0, 'error': None,
                    'sources': [{'id': s['id'], 'name': s['name'], 'state': 'pending', 'found': 0, 'new': 0,
                                 'via': None, 'off_topic': 0, 'error': None} for s in sources]}
@@ -229,7 +232,8 @@ class Jobs:
 
     def _run(self, job, sources, days):
         try:
-            added = self.collector.collect(sources, days, lambda sid, **f: self._update(job, sid, **f))
+            added = self.collector.collect(sources, days, lambda sid, **f: self._update(job, sid, **f),
+                                           run_id=job['run'])
             total = sum(added.values())
             with self._lock:
                 for entry in job['sources']:

@@ -51,6 +51,15 @@ def _int(value, name, low, high):
     return number
 
 
+def _run_or_none(value):
+    """A refresh identifier (job 'run'), used to list exactly the articles that refresh added."""
+    if not value:
+        return None
+    if not re.fullmatch(r'[0-9A-Za-z:TZ-]{1,64}', value):
+        raise ApiError(400, 'Invalid refresh identifier')
+    return value
+
+
 def validate_sources(payload):
     if not isinstance(payload, dict) or not isinstance(payload.get('sources'), list):
         raise ApiError(400, 'Expected {"sources": [...], "settings": {...}}')
@@ -216,6 +225,7 @@ class Handler(BaseHTTPRequestHandler):
             sort=query.get('sort', '') if query.get('sort') in ('', 'newest', 'relevance', None) else 'newest',
             limit=_int(query.get('limit', 48), 'limit', 1, 200),
             offset=_int(query.get('offset', 0), 'offset', 0, 100_000),
+            run_id=_run_or_none(query.get('run')),
         )
         self.send_json(200, result)
 

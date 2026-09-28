@@ -1,5 +1,28 @@
 # Cyber Security News Powered by AI release notes
 
+## Version 3.4 — Refresh brings only new news
+
+A refresh, whether manual or automatic, adds only articles that have never been collected before, and after a manual refresh the page now shows exactly those articles.
+
+### How "new" is decided
+
+- An article counts as **new** when it isn't already stored: neither its link nor the same headline from the same source is in the database. Manual and automatic refreshes share the same database, so each one adds only what the previous refreshes didn't collect, whichever kind ran last.
+- This is deliberately **not** "published after the last refresh time". Some publishers add items with an earlier date, or their feeds update late. A pure time cut-off would silently lose those articles; the "not stored yet" rule collects them once and never twice.
+- Each source is still limited by its maximum number of articles and the look-back window from *Manage sources*.
+- The time of every refresh is recorded (overall and per source) and shown on the main page, so each result can be compared with the previous refresh.
+
+### Improvements
+
+- **See only what the refresh brought.** When a manual refresh finishes, the list switches to **only the articles it added**, with a pill *Only the N new from the last refresh*. Remove the pill to go back to everything (the default 7-day view).
+- **Clear result message.** The message after a refresh now compares with the previous one, for example *3 new articles since the last refresh (automatic, 8h ago) — showing only these*, or *No new articles since the last refresh (5 min ago): everything the sources published is already collected*. Per-source progress still shows *N new · M in window*.
+- **Less wasted work.** Articles already stored under a different link (for example with `?utm_source=` tracking parameters) are now recognised by headline **before** summarising or downloading their page. Previously they were only rejected when saving: never duplicated, but processed for nothing.
+- **Exact "new" tracking.** Every refresh gets a unique identifier, and the articles it adds are tagged with it, so the "new from the last refresh" view is exact even when two refreshes happen within the same second. Existing databases are upgraded automatically on first start; no action is needed.
+
+### Verified
+
+- On a copy of the live database with the six real sources, two refreshes in a row both reported *No new articles*, with 0 new for every source even though 30 items were in the window. After three Hacker News articles were removed from the copy, a Hacker News refresh brought back exactly those three and the list showed only them.
+- 3 new tests (72 in total). They cover: a second refresh (automatic) adding only the two articles published in between, with no page downloads for known articles; the "new only" view returning exactly those two; a re-issued link with the same headline not counting as new; and a late-arriving article dated before the last refresh still being collected once.
+
 ## Version 3.3 — Automatic daily refresh and database size
 
 News can now be refreshed in two ways:

@@ -116,7 +116,7 @@
   <footer class="footer">
     <div class="shell footer-inner">
       <p>Summaries come from publisher feeds, article pages or Claude — always validate against the original advisory before acting.</p>
-      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v3.3</span></a></p>
+      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v3.4</span></a></p>
     </div>
   </footer>
 
@@ -183,7 +183,7 @@
           <ul>
             <li><strong>Manually</strong>, by the analyst: <em>Refresh news</em> collects from all enabled sources, one source, or several chosen sources.</li>
             <li><strong>Automatically</strong>, by the application: <span id="aboutAuto">once a day for all enabled sources</span>, using the look-back window and the per-source article limits from <em>Manage sources</em>.</li>
-            <li>Both add only articles not already stored, so nothing is duplicated.</li>
+            <li>Both bring <strong>only new news</strong>: an article already stored, by link or by the same headline from the same source, is skipped before any work is done, so nothing is duplicated. After a manual refresh the list shows just the articles it added; remove the “new from the last refresh” filter to see everything again.</li>
           </ul>
         </section>
         <section class="about-block">
@@ -198,6 +198,7 @@
         <section class="about-block">
           <h3>What’s new</h3>
           <ul>
+            <li><strong>3.4</strong>: a refresh brings only news never collected before, and afterwards shows just those new articles.</li>
             <li><strong>3.3</strong>: automatic daily refresh (default 02:00) alongside manual refreshes; exact database size in bytes, KB, MB and GB.</li>
             <li><strong>3.2</strong>: “i” buttons explain each statistic at the top of the page.</li>
             <li><strong>3.1</strong>: news is kept across restarts in the shared <code>./data</code> folder, clean shutdown, backups.</li>

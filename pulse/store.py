@@ -118,6 +118,10 @@ class Store:
         with self._conn() as db:
             db.execute('PRAGMA journal_mode=WAL')
             db.executescript(SCHEMA)
+            # v3.4: articles remember which refresh added them (existing databases are upgraded in place).
+            if 'run_id' not in {r[1] for r in db.execute('PRAGMA table_info(articles)')}:
+                db.execute('ALTER TABLE articles ADD COLUMN run_id TEXT')
+            db.execute('CREATE INDEX IF NOT EXISTS idx_articles_run ON articles(run_id)')
             if not db.execute('SELECT 1 FROM sources LIMIT 1').fetchone() and not self._meta(db, 'seeded'):
                 self._seed(db)
 
@@ -210,6 +214,19 @@ class Store:
                            (now_iso(), error, source_id))
 
     # ----- articles --------------------------------------------------------
+    def unknown(self, items):
+        """Items not stored yet — same rule as upsert: new URL *and* new headline for that source."""
+        if not items:
+            return []
+        with self._conn() as db:
+            seen_urls = {r[0] for r in db.execute(
+                f'SELECT url FROM articles WHERE url IN ({",".join("?" * len(items))})', [i['url'] for i in items])}
+            seen_titles = {(r[0], r[1]) for r in db.execute(
+                'SELECT source_name, title_key FROM articles WHERE source_name IN '
+                f'({",".join("?" * len({i["source_name"] for i in items}))})',
+                list({i['source_name'] for i in items}))}
+        return [i for i in items if i['url'] not in seen_urls and (i['source_name'], i['title_key']) not in seen_titles]
+
     def known_urls(self, urls):
         urls = list(urls)
         if not urls:
@@ -218,8 +235,9 @@ class Store:
             marks = ','.join('?' * len(urls))
             return {r['url'] for r in db.execute(f'SELECT url FROM articles WHERE url IN ({marks})', urls)}
 
-    def upsert_articles(self, articles):
-        """Insert new articles; upgrade summaries of known ones. Returns number inserted."""
+    def upsert_articles(self, articles, run_id=None):
+        """Insert new articles (tagged with the refresh `run_id`); upgrade summaries of known ones.
+        Returns the number inserted."""
         added = 0
         with self._write_lock, self._conn() as db:
             for a in articles:
@@ -228,17 +246,21 @@ class Store:
                                  (a['url'], a['source_name'], a['title_key'])).fetchone()
                 if row is None:
                     db.execute('INSERT INTO articles(source_id, source_name, url, title, title_key, summary, '
-                               'summary_kind, topic, published_at, collected_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                               'summary_kind, topic, published_at, collected_at, run_id) '
+                               'VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                                (a.get('source_id'), a['source_name'], a['url'], a['title'], a['title_key'],
-                                a['summary'], a['summary_kind'], a['topic'], a['published_at'], now_iso()))
+                                a['summary'], a['summary_kind'], a['topic'], a['published_at'], now_iso(), run_id))
                     added += 1
                 elif SUMMARY_RANK[a['summary_kind']] > SUMMARY_RANK.get(row['summary_kind'], 0):
                     db.execute('UPDATE articles SET summary=?, summary_kind=?, topic=? WHERE id=?',
                                (a['summary'], a['summary_kind'], a['topic'], row['id']))
         return added
 
-    def _filters(self, q, time_range, topic, sources, *, skip=()):
+    def _filters(self, q, time_range, topic, sources, *, skip=(), run_id=None):
         where, params = [], []
+        if run_id:
+            where.append('a.run_id = ?')
+            params.append(run_id)
         cutoff = RANGES.get(time_range)
         if cutoff is not None:
             where.append('a.published_at >= ?')
@@ -254,7 +276,8 @@ class Store:
             params.append(q)
         return (' AND '.join(where) or '1'), params
 
-    def search(self, text='', time_range='7d', topic='', sources=(), sort='', limit=48, offset=0):
+    def search(self, text='', time_range='7d', topic='', sources=(), sort='', limit=48, offset=0,
+               run_id=None):
         if time_range not in RANGES:
             raise ValueError('range must be one of ' + ', '.join(RANGES))
         if topic and topic not in TOPICS:
@@ -262,7 +285,7 @@ class Store:
         q = fts_query(text or '')
         sort = sort or ('relevance' if q else 'newest')
         base = 'FROM articles a JOIN articles_fts ON articles_fts.rowid = a.id' if q else 'FROM articles a'
-        where, params = self._filters(q, time_range, topic, list(sources))
+        where, params = self._filters(q, time_range, topic, list(sources), run_id=run_id)
         cols = ', '.join('a.' + c for c in ARTICLE_COLUMNS)
         if q:
             cols += (", highlight(articles_fts, 0, char(2), char(3)) AS title_hl"
@@ -276,7 +299,8 @@ class Store:
                 total = db.execute(f'SELECT COUNT(*) {base} WHERE {where}', params).fetchone()[0]
                 facets = {}
                 for column, skip in (('topic', 'topic'), ('source_name', 'sources')):
-                    fw, fp = self._filters(q, time_range, topic, list(sources), skip=(skip,))
+                    fw, fp = self._filters(q, time_range, topic, list(sources), skip=(skip,),
+                                           run_id=run_id)
                     facets[column] = {r[0]: r[1] for r in db.execute(
                         f'SELECT a.{column}, COUNT(*) {base} WHERE {fw} GROUP BY a.{column}', fp)}
                 sample = db.execute(f'SELECT a.title, a.summary {base} WHERE {where} '
