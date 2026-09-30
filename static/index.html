@@ -61,10 +61,10 @@
           <p class="deck" id="deck">Security reporting from the sources you choose, summarised, classified and indexed so you can find what matters.</p>
         </div>
         <dl class="stats" id="stats" aria-label="Collection statistics">
-          <div class="stat"><dt>Last 24 hours<button class="info-btn" type="button" aria-label="What does Last 24 hours mean?" aria-expanded="false" aria-describedby="tip-24h">i</button><span class="info-tip" id="tip-24h" role="tooltip">Articles <strong>published</strong> in the past 24 hours, according to each source’s own date, counted across all the news stored here. It is not affected by the filters below; use the “24 hours” filter to list them.</span></dt><dd id="stat24h">–</dd></div>
-          <div class="stat"><dt>Last 7 days<button class="info-btn" type="button" aria-label="What does Last 7 days mean?" aria-expanded="false" aria-describedby="tip-7d">i</button><span class="info-tip" id="tip-7d" role="tooltip">Articles <strong>published</strong> in the past 7 days (this includes the last 24 hours), counted across all stored news whatever filters are selected.</span></dt><dd id="stat7d">–</dd></div>
-          <div class="stat"><dt>Indexed articles<button class="info-btn" type="button" aria-label="What does Indexed articles mean?" aria-expanded="false" aria-describedby="tip-total">i</button><span class="info-tip" id="tip-total" role="tooltip">Every article saved in the database and searchable: all dates and all sources, including sources you have since disabled or removed. They are kept across restarts until you delete <code>data/pulse.db</code>.</span></dt><dd id="statTotal">–</dd></div>
-          <div class="stat"><dt>Active sources<button class="info-btn" type="button" aria-label="What does Active sources mean?" aria-expanded="false" aria-describedby="tip-sources">i</button><span class="info-tip" id="tip-sources" role="tooltip"><strong>Enabled</strong> sources out of all configured sources. <em>Refresh all enabled sources</em> collects from the enabled ones; a disabled source can still be refreshed on its own. Manage them with the sliders button at the top.</span></dt><dd id="statSources">–</dd></div>
+          <div class="stat"><dt>Last 24 hours<button class="info-btn" type="button" aria-label="What does Last 24 hours mean?" aria-expanded="false" aria-describedby="tip-24h">i</button><span class="info-tip" id="tip-24h" role="tooltip">Articles <strong>published</strong> in the past 24 hours, according to each source’s own date, counted across all the news stored here. It is not affected by the filters below; use the “24 hours” filter to list them.</span></dt><dd><button class="stat-link" id="stat24h" type="button" data-action="24h" title="Show the articles published in the last 24 hours">–</button></dd></div>
+          <div class="stat"><dt>Last 7 days<button class="info-btn" type="button" aria-label="What does Last 7 days mean?" aria-expanded="false" aria-describedby="tip-7d">i</button><span class="info-tip" id="tip-7d" role="tooltip">Articles <strong>published</strong> in the past 7 days (this includes the last 24 hours), counted across all stored news whatever filters are selected.</span></dt><dd><button class="stat-link" id="stat7d" type="button" data-action="7d" title="Show the articles published in the last 7 days">–</button></dd></div>
+          <div class="stat"><dt>Indexed articles<button class="info-btn" type="button" aria-label="What does Indexed articles mean?" aria-expanded="false" aria-describedby="tip-total">i</button><span class="info-tip" id="tip-total" role="tooltip">Every article saved in the database and searchable: all dates and all sources, including sources you have since disabled or removed. They are kept across restarts until you delete <code>data/pulse.db</code>.</span></dt><dd><button class="stat-link" id="statTotal" type="button" data-action="all" title="Show all collected articles (clears the filters)">–</button></dd></div>
+          <div class="stat"><dt>Active sources<button class="info-btn" type="button" aria-label="What does Active sources mean?" aria-expanded="false" aria-describedby="tip-sources">i</button><span class="info-tip" id="tip-sources" role="tooltip"><strong>Enabled</strong> sources out of all configured sources. <em>Refresh all enabled sources</em> collects from the enabled ones; a disabled source can still be refreshed on its own. Manage them with the sliders button at the top.</span></dt><dd><button class="stat-link" id="statSources" type="button" data-action="sources" title="Manage sources">–</button></dd></div>
           <p class="stat-foot" id="lastRefresh"></p>
           <p class="stat-foot auto-foot" id="autoRefreshFoot"></p>
         </dl>
@@ -123,6 +123,7 @@
           <h2 id="feedTitle">Intelligence queue</h2>
           <p class="result-count" id="resultCount" aria-live="polite"></p>
         </div>
+        <div class="new-only" id="newOnlyNotice" role="status" hidden></div>
         <div class="active-filters" id="activeFilters"></div>
         <div class="grid" id="grid" aria-busy="true"></div>
         <div class="empty" id="empty" hidden></div>
@@ -134,7 +135,7 @@
   <footer class="footer">
     <div class="shell footer-inner">
       <p>Summaries come from publisher feeds, article pages or Claude — always validate against the original advisory before acting.</p>
-      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v4.0</span></a></p>
+      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v4.0.1</span></a></p>
     </div>
   </footer>
 
@@ -221,6 +222,7 @@
         <section class="about-block">
           <h3>What’s new</h3>
           <ul>
+            <li><strong>4.0.1</strong>: all collected articles are easy to reach: a clear “new articles only” banner with a <em>Show all</em> button, clickable statistics, and 100 articles per page.</li>
             <li><strong>4.0</strong>: refresh log — every manual and automatic refresh adds a line to <code>data/refresh.log</code> with its date and time and the number of new articles per source.</li>
             <li><strong>3.5</strong>: “News per day” chart — stored articles per day (per hour for 24 hours), by topic, following the time and topic filters.</li>
             <li><strong>3.4</strong>: a refresh brings only news never collected before, and afterwards shows just those new articles.</li>

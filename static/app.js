@@ -11,7 +11,7 @@ const TOPICS = [
 const TOPIC_CLASS = Object.fromEntries(TOPICS);
 const RANGES = [['24h', '24 hours'], ['7d', '7 days'], ['15d', '15 days'], ['30d', '30 days'], ['all', 'All collected']];
 const KIND_LABEL = { ai: 'AI summary', feed: 'Feed abstract', page: 'Page excerpt', headline: 'Headline only' };
-const PAGE_SIZE = 48;
+const PAGE_SIZE = 100;  // articles per page; 'Load more' fetches the next page
 
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
@@ -297,6 +297,8 @@ function renderArticles(articles, append) {
     ? `${fmt(shown)} of ${fmt(state.total)} article${state.total === 1 ? '' : 's'}`
     : '';
   $('#loadMore').hidden = shown >= state.total;
+  const remaining = state.total - shown;
+  $('#loadMore').textContent = `Show ${fmt(Math.min(remaining, PAGE_SIZE))} more (${fmt(remaining)} not shown yet)`;
   if (!state.total) showEmpty(state.status && !state.status.articles_total ? 'first-run' : 'no-match');
   else $('#empty').hidden = true;
 }
@@ -371,11 +373,7 @@ function renderActiveFilters() {
   const pills = [];
   const pill = (label, onRemove) => el('span', { class: 'pill' }, label,
     el('button', { type: 'button', 'aria-label': `Remove filter ${label}`, onclick: onRemove }, '×'));
-  if (state.newRun) {
-    const newPill = pill(`Only the ${fmt(state.newCount)} new from the last refresh`, () => { clearNewOnly(); loadArticles(); });
-    newPill.classList.add('new');
-    pills.push(newPill);
-  }
+  renderNewOnlyNotice();
   if (state.q) pills.push(pill(`Search: ${state.q}`, () => setQuery('')));
   if (state.topic) pills.push(pill(`Topic: ${state.topic}`, () => setTopic('')));
   for (const s of state.sources) pills.push(pill(`Source: ${s}`, () => { state.sources.delete(s); loadArticles(); }));
@@ -384,7 +382,10 @@ function renderActiveFilters() {
 }
 
 // ----- filter actions -------------------------------------------------------
-function setRange(range) { state.range = range; renderRange(); loadArticles(); }
+function setRange(range) {
+  state.newRun = null; state.newCount = 0;  // choosing a time range leaves the "new only" view
+  state.range = range; renderRange(); loadArticles();
+}
 function setTopic(topic) { state.topic = topic; loadArticles(); }
 function setQuery(q) { state.q = q; $('#search').value = q; loadArticles(); }
 function clearFilters() {
@@ -393,12 +394,36 @@ function clearFilters() {
   loadArticles();
 }
 
+/** After a manual refresh the list shows only what it added — make that impossible to miss. */
+function renderNewOnlyNotice() {
+  const box = $('#newOnlyNotice');
+  if (!state.newRun) { box.hidden = true; return; }
+  const total = state.status ? state.status.articles_total : null;
+  box.hidden = false;
+  box.replaceChildren(
+    el('span', {}, 'Showing only the ', el('strong', {}, `${fmt(state.newCount)} new article${state.newCount === 1 ? '' : 's'}`),
+      ' from your last refresh.'),
+    el('button', { class: 'btn btn-ghost', type: 'button', onclick: showAllCollected },
+      total ? `Show all ${fmt(total)} collected articles` : 'Show all collected articles'));
+}
+
+/** Leave the "new only" view. Goes to All collected, so every stored article is visible. */
 function clearNewOnly() {
   if (!state.newRun) return;
   state.newRun = null;
   state.newCount = 0;
-  state.range = '7d';
+  state.range = 'all';
   renderRange();
+}
+
+/** Everything that is stored: all dates, all topics, all sources, no search. */
+function showAllCollected() {
+  state.newRun = null; state.newCount = 0;
+  state.q = ''; state.topic = ''; state.sources.clear(); $('#search').value = '';
+  state.range = 'all';
+  renderRange();
+  loadArticles();
+  $('#feed').scrollIntoView({ block: 'start' });
 }
 
 // ----- collection -----------------------------------------------------------
@@ -642,6 +667,17 @@ function wireInfoTips() {
 
 function wire() {
   wireInfoTips();
+  // The statistic numbers are shortcuts: they show exactly the articles they count.
+  for (const button of document.querySelectorAll('.stat-link')) {
+    button.addEventListener('click', () => {
+      const action = button.dataset.action;
+      if (action === 'sources') { openSourcesDialog(); return; }
+      if (action === 'all') { showAllCollected(); return; }
+      state.q = ''; state.topic = ''; state.sources.clear(); $('#search').value = '';
+      setRange(action);
+      $('#feed').scrollIntoView({ block: 'start' });
+    });
+  }
   let debounce;
   $('#search').addEventListener('input', event => {
     clearTimeout(debounce);

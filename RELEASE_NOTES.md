@@ -1,5 +1,28 @@
 # Cyber Security News Powered by AI release notes
 
+## Version 4.0.1 — See every collected article
+
+### The problem
+
+*Indexed articles* showed 63, but the list and *All topics* showed only 16. Nothing was missing: all 63 articles were stored and searchable. Two things hid most of them:
+
+1. **After a manual refresh the list switches to only the articles that refresh added** (introduced in 3.4). The last refresh had added exactly 16, so the list and every topic count covered just those 16. The only way back was a small "Only the 16 new from the last refresh ×" pill, which was easy to miss.
+2. **The default view is the last 7 days.** It held 60 of the 63 articles; the other 3 were published 8 days earlier and appear only under *All collected*. In addition, the list loaded 48 articles at a time, with the rest behind a *Load more* button.
+
+### Fixes
+
+- **A clear banner replaces the small pill.** Above the list it now says *Showing only the 16 new articles from your last refresh* and has a **Show all 63 collected articles** button, which clears every filter and switches to *All collected*.
+- **Leaving the "new only" view now goes to All collected**, so every stored article is listed, instead of back to the 7-day window. Picking a time range also leaves that view.
+- **The statistics at the top are clickable shortcuts that show exactly what they count:**
+  - **Indexed articles** shows all collected articles with every filter cleared;
+  - **Last 24 hours** and **Last 7 days** apply that time range;
+  - **Active sources** opens *Manage sources*.
+- **100 articles per page** instead of 48, so up to 100 are listed at once. When there are more, the button says exactly how many remain, for example *Show 100 more (137 not shown yet)*.
+
+### Verified
+
+On a copy of the real database (63 articles), a refresh that added 5 articles showed the banner with *All topics 5*. Clicking **Show all 63 collected articles** listed **63 of 63** (63 cards, *All topics 63*, chart total 63). The *Last 7 days* and *Last 24 hours* numbers led to 60 and 15 articles, matching their figures.
+
 ## Version 4.0 — Refresh log
 
 Every refresh, whether **automatic** (the daily run) or **manual** (an analyst's *Refresh news*, for all, one or several sources), now appends one line to a plain-text log file, **`data/refresh.log`**. The file keeps a permanent record of when collection ran and how much new news it brought.

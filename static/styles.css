@@ -167,6 +167,10 @@ svg { width: 18px; height: 18px; flex: none; }
   .stat:has(.info-btn:hover) { z-index: 20; }
 }
 .stat dd { margin: 6px 0 0; font: 600 34px/1 var(--display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.stat-link { padding: 0; border: 0; background: none; font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; border-radius: 6px; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 6px; text-decoration-thickness: 2px; transition: text-decoration-color .15s, color .15s; }
+.stat-link:hover, .stat-link:focus-visible { color: var(--accent); text-decoration-color: currentColor; }
+.new-only { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; padding: 12px 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent-2) 45%, transparent); background: var(--glow-b); font-size: 14px; }
+.new-only strong { color: var(--ink); }
 .stat-foot { grid-column: 1 / -1; margin: 2px 0 0; font: 12px var(--mono); color: var(--muted); }
 
 /* ===== Briefing ========================================================== */
