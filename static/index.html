@@ -135,7 +135,7 @@
   <footer class="footer">
     <div class="shell footer-inner">
       <p>Summaries come from publisher feeds, article pages or Claude — always validate against the original advisory before acting.</p>
-      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v4.0.1</span></a></p>
+      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v4.1</span></a></p>
     </div>
   </footer>
 
@@ -184,6 +184,13 @@
   <dialog class="dialog wide" id="aboutDialog" aria-labelledby="aboutTitle">
     <header class="dialog-head"><div><p class="eyebrow">About</p><h2 id="aboutTitle">Cyber Security News Powered by AI</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">×</button></header>
     <div class="dialog-body">
+      <figure class="about-plate">
+        <a href="assets/about-plate.png" target="_blank" rel="noopener" title="Open the full-size image">
+          <img src="assets/about-plate.png" width="1600" height="900" loading="lazy"
+               alt="Illustration titled “On the distillation of signal”. On the left, an avalanche of thousands of text fragments, article cards and RSS marks pours in from blogs, feeds and advisories. In the centre, a circular instrument containing a small neural network, labelled language model, gathers the stream. On the right, the fragments leave as neat, ordered rows in five colours: Vulnerability, AI Security, Threat Intel, SecOps and Supply Chain. Caption: signal over noise.">
+        </a>
+        <figcaption>I. Ingest the avalanche · II. Distil with a model · III. Index as ordered strata</figcaption>
+      </figure>
       <p class="about-intro">A local cyber-intelligence briefing. It collects recent reporting from the sources you configure, summarises and classifies each article, and stores everything in a full-text index you can search and filter by time, topic and source.</p>
       <section class="about-block data-block" aria-labelledby="aboutDataTitle">
         <h3 id="aboutDataTitle">Your data is kept</h3>
@@ -222,6 +229,7 @@
         <section class="about-block">
           <h3>What’s new</h3>
           <ul>
+            <li><strong>4.1</strong>: an illustration of what the application does opens this dialog.</li>
             <li><strong>4.0.1</strong>: all collected articles are easy to reach: a clear “new articles only” banner with a <em>Show all</em> button, clickable statistics, and 100 articles per page.</li>
             <li><strong>4.0</strong>: refresh log — every manual and automatic refresh adds a line to <code>data/refresh.log</code> with its date and time and the number of new articles per source.</li>
             <li><strong>3.5</strong>: “News per day” chart — stored articles per day (per hour for 24 hours), by topic, following the time and topic filters.</li>

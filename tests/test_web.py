@@ -57,6 +57,8 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.request('GET', '/')[0], 200)
         self.assertEqual(self.request('GET', '/app.js')[0], 200)
         self.assertEqual(self.request('GET', '/chart.js')[0], 200)
+        status, _, response = self.request('GET', '/assets/about-plate.png')
+        self.assertEqual((status, response.getheader('Content-Type')), (200, 'image/png'))
         for path in ['/.git/config', '/server.py', '/pulse/web.py', '/data/pulse.db', '/../etc/passwd',
                      '/static/index.html', '/%2e%2e/server.py']:
             with self.subTest(path=path):

@@ -27,6 +27,7 @@ STATIC_FILES = {
     '/styles.css': STATIC / 'styles.css',
     '/favicon.svg': STATIC / 'favicon.svg',
     '/assets/hero.png': STATIC / 'assets' / 'hero.png',
+    '/assets/about-plate.png': STATIC / 'assets' / 'about-plate.png',
     '/RELEASE_NOTES.md': ROOT / 'RELEASE_NOTES.md',
 }
 MAX_BODY = 100_000

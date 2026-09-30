@@ -15,7 +15,7 @@ name: cyber-intel-pulse
 services:
   pulse:
     build: .
-    image: cyber-intel-pulse:4.0.1
+    image: cyber-intel-pulse:4.1.0
     container_name: cyber-intel-pulse
     restart: unless-stopped
     # Run as the owner of ./data (your login user) so the database files stay yours.

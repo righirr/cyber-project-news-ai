@@ -1,3 +1,3 @@
 """Cyber Security News Powered by AI — collection, indexing and briefing service."""
 
-VERSION = '4.0.1'
+VERSION = '4.1.0'
