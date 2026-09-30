@@ -23,4 +23,4 @@ Local cyber-security news aggregator: a Python stdlib HTTP server plus a vanilla
 ## Conventions
 - Core code must remain stdlib-only; `anthropic` is the single optional dependency.
 - Summary kinds rank `headline < page < feed < ai`. Upserts only upgrade a summary, never downgrade it.
-- User-facing changes go in `RELEASE_NOTES.md`; bump `pulse/__init__.py` `VERSION`.
+- User-facing changes go in `RELEASE_NOTES.md` with a heading `## Version X.Y · YYYY-MM-DD — Title` plus a row in the Timeline table at the top; bump `pulse/__init__.py` `VERSION`.
