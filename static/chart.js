@@ -1,5 +1,6 @@
 'use strict';
-// "News per day" — stacked column chart of stored articles by publication date (vanilla SVG).
+// "News per day" — stacked column chart of stored articles (vanilla SVG), counted either by the
+// day they were collected (matches the refresh log) or by the day they were published.
 // Follows the page filters: 24 hours -> one column per hour; 7/15/30 days -> one per day;
 // All collected -> one per day (one per week beyond 120 days). All text is set with textContent.
 (function () {
@@ -207,7 +208,7 @@
     const rows = STACK.slice().reverse().filter(([name]) => bin.counts[name])  // top of the stack first
       .map(([name, cls]) => html('li', { class: `t-${cls}` }, html('span', { class: 'key' }), name, html('b', {}, fmt(bin.counts[name]))));
     tip.replaceChildren(
-      html('div', { class: 'when' }, longLabel(bin, last.unit)),
+      html('div', { class: 'when' }, `${longLabel(bin, last.unit)} · ${last.opts.basis}`),
       html('div', { class: 'total' }, fmt(bin.total), ' ', html('small', {}, bin.total === 1 ? 'article' : 'articles')),
       rows.length ? html('ul', {}, rows) : null);
     tip.hidden = false;
@@ -225,8 +226,34 @@
   }
 
   // ----- legend, subtitle, table ---------------------------------------------
+  const BASES = [['collected', 'Collected'], ['published', 'Published']];
+
+  /** Hour buckets for the chosen basis. "Collected" data arrives for every topic so the legend keeps
+   *  its counts; the topic filter is applied here. */
+  function source(opts) {
+    if (opts.basis !== 'collected') return opts.histogram || [];
+    return (opts.histogramCollected || []).filter(h => !opts.topic || h.topic === opts.topic);
+  }
+
+  function legendCounts(opts) {
+    if (opts.basis !== 'collected') return (opts.facets && opts.facets.topics) || {};
+    const counts = {};
+    for (const h of opts.histogramCollected || []) counts[h.topic] = (counts[h.topic] || 0) + h.count;
+    return counts;
+  }
+
+  function renderBasis(opts) {
+    $('chartBasis').replaceChildren(...BASES.map(([value, label]) => html('button', {
+      type: 'button', 'aria-pressed': String(opts.basis === value),
+      title: value === 'collected'
+        ? 'Articles per day they were collected by a refresh — matches the refresh log'
+        : 'Articles per day they were published by the source',
+      onclick: () => { if (opts.basis !== value) opts.onBasis(value); },
+    }, label)));
+  }
+
   function renderLegend(opts) {
-    const counts = (opts.facets && opts.facets.topics) || {};
+    const counts = legendCounts(opts);
     $('chartLegend').replaceChildren(...STACK.map(([name, cls]) => html('li', {},
       html('button', {
         type: 'button', class: `t-${cls}${counts[name] ? '' : ' zero'}`, 'aria-pressed': String(opts.topic === name),
@@ -243,10 +270,12 @@
       ? `since ${from.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`
       : `in the last ${{ '24h': '24 hours', '7d': '7 days', '15d': '15 days', '30d': '30 days' }[opts.range]}`;
     const sub = $('chartSub');
-    sub.replaceChildren(html('strong', {}, fmt(total)), ` article${total === 1 ? '' : 's'} published ${span}, ${per}, by topic`,
+    const verb = opts.basis === 'collected' ? 'collected' : 'published';
+    sub.replaceChildren(html('strong', {}, fmt(total)), ` article${total === 1 ? '' : 's'} ${verb} ${span}, ${per}, by topic`,
+      opts.basis === 'collected' ? ' · same days as the refresh log' : '',
       opts.filtered ? ' · matching the current filters' : '');
     const peak = bins.reduce((best, b) => (b.total > best.total ? b : best), { total: 0 });
-    $('chartCaption').textContent = `Stacked columns of articles ${per} ${span}. Total ${total}.`
+    $('chartCaption').textContent = `Stacked columns of articles ${verb} ${per} ${span}. Total ${total}.`
       + (peak.total ? ` Busiest: ${longLabel(peak, unit)} with ${peak.total}.` : '');
   }
 
@@ -261,15 +290,18 @@
 
   // ----- public API ----------------------------------------------------------
   function render(opts) {
-    const { bins, unit } = buildBins(opts.histogram || [], opts.range, opts.rangeStart);
+    opts = { ...opts, basis: opts.basis === 'collected' ? 'collected' : 'published' };
+    const { bins, unit } = buildBins(source(opts), opts.range, opts.rangeStart);
     last = { bins, unit, opts };
     $('chartCard').classList.remove('loading');
+    renderBasis(opts);
     renderLegend(opts);
     renderSubtitle(opts, bins, unit);
     renderTable(bins, unit);
     if (!bins.some(b => b.total)) {
       $('chartTip').hidden = true;
-      $('chartPlot').replaceChildren(html('div', { class: 'chart-empty' }, 'No articles were published in this period.'));
+      $('chartPlot').replaceChildren(html('div', { class: 'chart-empty' },
+        `No articles were ${opts.basis === 'collected' ? 'collected' : 'published'} in this period.`));
       return;
     }
     draw();

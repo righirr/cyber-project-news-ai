@@ -124,7 +124,7 @@ class SchedulerLoggingTests(unittest.TestCase):
         scheduler.record_result(job['id'])
         lines = self.lines()
         self.assertEqual(len(lines), 1)
-        self.assertIn('| automatic refresh | done | 3 new articles |', lines[0])  # per-source maximum respected
+        self.assertIn('| automatic refresh | done | 3 new articles (published ', lines[0])  # per-source maximum respected
         self.assertIn('Blog: 3', lines[0])
 
         # A manual refresh afterwards is logged too, with its kind and its own new count.
@@ -135,7 +135,7 @@ class SchedulerLoggingTests(unittest.TestCase):
             time.sleep(0.02)
         lines = self.lines()
         self.assertEqual(len(lines), 2)
-        self.assertIn('| manual refresh (selected sources) | done | 1 new article |', lines[1])
+        self.assertIn('| manual refresh (selected sources) | done | 1 new article (published ', lines[1])
 
     def feed_more(self, net):
         net.pages['https://blog.example/'] = (rss([('Brand new malware story', 'https://blog.example/new', 0, LONG)]

@@ -94,9 +94,12 @@
         <header class="chart-head">
           <div>
             <h2 id="timelineTitle">News per day</h2>
-            <p class="chart-sub" id="chartSub">Articles stored, by publication date</p>
+            <p class="chart-sub" id="chartSub">Articles stored, per day</p>
           </div>
-          <button class="link-btn" id="chartTableToggle" type="button" aria-pressed="false" aria-controls="chartTable">Show as table</button>
+          <div class="chart-tools">
+            <div class="segmented chart-basis" id="chartBasis" role="group" aria-label="Count articles by the day they were"></div>
+            <button class="link-btn" id="chartTableToggle" type="button" aria-pressed="false" aria-controls="chartTable">Show as table</button>
+          </div>
         </header>
         <ul class="chart-legend" id="chartLegend" aria-label="Topics — select one to filter"></ul>
         <div class="chart-plot" id="chartPlot"></div>
@@ -135,7 +138,7 @@
   <footer class="footer">
     <div class="shell footer-inner">
       <p>Summaries come from publisher feeds, article pages or Claude — always validate against the original advisory before acting.</p>
-      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v4.1</span></a></p>
+      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v4.2</span></a></p>
     </div>
   </footer>
 
@@ -229,6 +232,7 @@
         <section class="about-block">
           <h3>What’s new</h3>
           <ul>
+            <li><strong>4.2</strong>: the chart can count news by the day it was <em>collected</em> (matches the refresh log) or <em>published</em>; log lines list the publication days of the new articles.</li>
             <li><strong>4.1</strong>: an illustration of what the application does opens this dialog.</li>
             <li><strong>4.0.1</strong>: all collected articles are easy to reach: a clear “new articles only” banner with a <em>Show all</em> button, clickable statistics, and 100 articles per page.</li>
             <li><strong>4.0</strong>: refresh log — every manual and automatic refresh adds a line to <code>data/refresh.log</code> with its date and time and the number of new articles per source.</li>

@@ -4,6 +4,7 @@
 
 | Version | Date | Highlights |
 |---|---|---|
+| 4.2 | 2026-10-19 | Collected vs published: chart switch and publication days in the log |
 | 4.1 | 2026-09-30 | About illustration |
 | 4.0.1 | 2026-09-29 | See every collected article |
 | 4.0 | 2026-09-27 | Refresh log |
@@ -24,6 +25,34 @@
 | 1.0 | 2026-08-28 | Original scope |
 
 Dates from 2.0 onwards are when each version was built, confirmed by the project's Git history. Versions 1.0–1.7 were built with OpenAI Codex. Their history was in a Git repository that has since been deleted, so only two dates survive: 1.0 from the original page's "curated 28 Aug 2026" stamp and asset date, and 1.7 from the last file changes of that era. Versions 1.1–1.6 fall between those two dates; their exact days were not recorded.
+
+## Version 4.2 · 2026-10-19 — Collected vs published: chart switch and publication days in the log
+
+### Why
+
+The refresh log said that on **Oct 17** an automatic refresh brought **16 new articles**, but the *News per day* chart showed only **3** on Oct 17. Both numbers were correct; they counted different dates:
+
+- The **log counts by collection date**: the 02:00 refresh on Oct 17 *saved* 16 articles.
+- The **chart counted by publication date**: those 16 were *published* on Oct 15 (1) and Oct 16 (15), so they appeared in those days' bars. The 3 articles published on Oct 17 were collected by the next night's refresh, which the log reports as "3 new articles" on Oct 18.
+
+Because the automatic refresh runs at 02:00, each night it mainly collects the previous day's news, so the log for a day roughly matches the chart for the day before. This version makes both dates visible.
+
+### New
+
+- **The log line shows the publication days of the new articles**, for example:
+  `2026-10-17 02:00:00 -03 | automatic refresh | done | 16 new articles (published Oct 15: 1, Oct 16: 15) | 4.0 s | …`
+  The days are in the server's time zone, the same as the line's timestamp, and are listed oldest first. Refreshes that add nothing still read `0 new articles`. The counts come from the articles that refresh actually saved, which are tagged with its identifier, so they always add up to the "new articles" number.
+- **Chart switch: Collected | Published.** The *News per day* chart header has a two-way switch:
+  - **Collected:** articles per day they were saved by a refresh, manual or automatic. **It matches the refresh log day by day.** The time window (24 hours, 7, 15, 30 days, All) applies to the collection date.
+  - **Published:** articles per day the source published them. This is the previous behaviour, and its total always equals the list's article count.
+
+  The subtitle, legend counts, tooltip (*… · collected* / *… · published*), table view and empty-state message all follow the chosen mode. Topic, source, search and "new from the last refresh" filters apply to both. The choice is remembered in the browser; *Published* is the default.
+
+### Verified with the real data
+
+- With a copy of the live database, *Collected* showed **Oct 16 = 17, Oct 17 = 16, Oct 18 = 3**, exactly the three log lines. *Published* showed Oct 16 = 15 and Oct 17 = 3.
+- A real refresh against the six sources wrote `10 new articles (published Oct 19: 10)`.
+- Added 7 tests (92 in total). They cover the log format and ordering, the breakdown from a real refresh adding up to the new-article count, the collected histogram's time window using the collection date, buckets by collection hour, topic, source and search filters, and paging.
 
 ## Version 4.1 · 2026-09-30 — About illustration
 

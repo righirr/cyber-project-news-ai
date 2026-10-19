@@ -253,6 +253,11 @@ class Jobs:
 
     def _finish(self, job, **final):
         """Write the log line first, then mark the job finished — so "finished" always means "logged"."""
+        try:  # which days the added articles were published on, for the log line
+            final['published'] = self.store.published_days(job['run'])
+        except Exception:  # never let reporting break the refresh
+            log.exception('Could not count publication days for %s', job['run'])
+            final['published'] = []
         if self.refresh_log:
             self.refresh_log.job({**self.get(job['id']), **final})
         self._update(job, None, **final)

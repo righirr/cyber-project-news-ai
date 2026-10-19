@@ -209,6 +209,8 @@ svg { width: 18px; height: 18px; flex: none; }
 .chart-card.loading { opacity: .55; }
 .chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .chart-head h2 { font-size: 18px; }
+.chart-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+.chart-basis button { padding: 5px 12px; font-size: 12px; }
 .chart-sub { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
 .chart-sub strong { color: var(--ink); font-weight: 600; }
 .chart-legend { list-style: none; margin: 12px 0 4px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
@@ -251,6 +253,7 @@ svg { width: 18px; height: 18px; flex: none; }
 @media (max-width: 620px) {
   .chart-card { padding: 14px 12px 10px; }
   .chart-head { flex-direction: column; gap: 6px; }
+  .chart-tools { justify-content: flex-start; }
 }
 
 /* ===== Layout ============================================================ */

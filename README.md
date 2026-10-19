@@ -45,12 +45,16 @@ Under the filter bar, a stacked column chart shows how many stored articles were
 
 Besides manual refreshes, the app collects from all **enabled** sources once a day, by default at **02:00** server time, using the look-back window and each source's article limit. Turn it on or off and change the time in **Manage sources → Automatic refresh**. If the app was off at that time, the missed refresh runs once after it starts. With Docker, the container uses the host time zone (`/etc/localtime` is mounted). The next run is shown under the statistics and in About.
 
+## News per day: collected or published
+
+The chart header has a **Collected | Published** switch. *Collected* counts articles by the day a refresh saved them, which matches the refresh log. *Published* counts them by the day the source published them, which matches the list. A nightly refresh mostly collects the previous day's news, so the two views differ by about a day.
+
 ## Refresh log
 
 Every refresh, manual or automatic, appends one line to **`data/refresh.log`**: date and time, kind of refresh, result, number of new articles, duration, new articles per source, and errors. For example:
 
 ```
-2026-09-28 02:00:04 -03 | automatic refresh | done | 12 new articles | 8.4 s | WIRED Security: 3, ... | errors: none
+2026-10-17 02:00:00 -03 | automatic refresh | done | 16 new articles (published Oct 15: 1, Oct 16: 15) | 4.0 s | WIRED Security: 1, ... | errors: none
 ```
 
 Follow it with `tail -f data/refresh.log`; the latest lines are also shown in About. It rotates to `refresh.log.1` beyond 5 MB. Set `PULSE_REFRESH_LOG` to store it elsewhere.

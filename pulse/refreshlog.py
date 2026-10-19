@@ -1,7 +1,7 @@
 """Plain-text log of every refresh (manual and automatic): one line per run, appended to data/refresh.log.
 
 Example line:
-2026-09-28 02:00:04 -03 | automatic refresh | done | 12 new articles | 8.4 s | WIRED Security: 3, KrebsOnSecurity: 0, ... | errors: none
+2026-10-17 02:00:00 -03 | automatic refresh | done | 16 new articles (published Oct 15: 1, Oct 16: 15) | 4.0 s | WIRED Security: 1, ... | errors: none
 """
 import logging
 import os
@@ -23,6 +23,14 @@ def _local(iso_utc):
         return datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z')
     moment = datetime.fromisoformat(iso_utc.replace('Z', '+00:00')).astimezone()
     return moment.strftime('%Y-%m-%d %H:%M:%S %Z')
+
+
+def _published(days):
+    """' (published Oct 15: 1, Oct 16: 15)' from [('2026-10-15', 1), ('2026-10-16', 15)]."""
+    if not days:
+        return ''
+    parts = ', '.join(f"{datetime.fromisoformat(day):%b %d}: {count}" for day, count in days)
+    return f' (published {parts})'
 
 
 class RefreshLog:
@@ -57,7 +65,7 @@ class RefreshLog:
             errors = '; '.join(filter(None, [errors, _one_line(job['error'])]))
         self._append(' | '.join([
             _local(job['started_at']), self.kind(job.get('scope')), job['status'],
-            f"{job['added']} new article{'s' if job['added'] != 1 else ''}",
+            f"{job['added']} new article{'s' if job['added'] != 1 else ''}{_published(job.get('published'))}",
             f"{(finished - started).total_seconds():.1f} s",
             per_source or 'no sources',
             f"errors: {errors or 'none'}",

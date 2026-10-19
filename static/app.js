@@ -23,6 +23,7 @@ const state = {
   offset: 0, total: 0, facets: { topics: {}, sources: {} }, articles: [],
   status: null, sourceConfig: [], settings: { lookback_days: 7, default_max_items: 10 },
   newRun: null, newCount: 0,  // set after a refresh: show only the articles it added
+  chartBasis: 'published', chartData: null,  // chart counts by 'collected' or 'published' day
 };
 const previousVisit = Number(storage.get('pulse.lastVisit')) || 0;
 let requestSeq = 0;
@@ -253,11 +254,8 @@ async function loadArticles({ append = false } = {}) {
   state.articles = append ? state.articles.concat(data.articles) : data.articles;
   renderArticles(data.articles, append);
   if (!append) {
-    NewsChart.render({
-      histogram: data.histogram, range: state.range, rangeStart: data.range_start, facets: data.facets,
-      topic: state.topic, filtered: Boolean(state.q || state.topic || state.sources.size || state.newRun),
-      onTopic: topic => setTopic(topic),
-    });
+    state.chartData = data;
+    renderChart();
   }
   renderFacets();
   renderCloud(data.terms);
@@ -285,6 +283,18 @@ function card(article, index) {
         onclick: () => { state.sources = new Set([article.source_name]); loadArticles(); } }, article.source_name),
       el('span', { class: `kind kind-${article.summary_kind}` }, KIND_LABEL[article.summary_kind] || ''),
       el('span', { class: 'read', 'aria-hidden': 'true' }, 'Read ↗')));
+}
+
+function renderChart() {
+  const data = state.chartData;
+  if (!data) return;
+  NewsChart.render({
+    histogram: data.histogram, histogramCollected: data.histogram_collected, basis: state.chartBasis,
+    range: state.range, rangeStart: data.range_start, facets: data.facets,
+    topic: state.topic, filtered: Boolean(state.q || state.topic || state.sources.size || state.newRun),
+    onTopic: topic => setTopic(topic),
+    onBasis: basis => { state.chartBasis = basis; storage.set('pulse.chartBasis', basis); renderChart(); },
+  });
 }
 
 function renderArticles(articles, append) {
@@ -751,6 +761,7 @@ function wire() {
 async function init() {
   $('#today').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   readUrl();
+  if (storage.get('pulse.chartBasis') === 'collected') state.chartBasis = 'collected';  // remembered per browser
   renderRange();
   wire();
   NewsChart.init();

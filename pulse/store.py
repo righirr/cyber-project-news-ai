@@ -256,14 +256,16 @@ class Store:
                                (a['summary'], a['summary_kind'], a['topic'], row['id']))
         return added
 
-    def _filters(self, q, time_range, topic, sources, *, skip=(), run_id=None):
+    def _filters(self, q, time_range, topic, sources, *, skip=(), run_id=None, date_column='published_at'):
+        """WHERE clause shared by the list, facets and charts. The time window applies to
+        `date_column`: publication date for the list, collection date for the "collected" chart."""
         where, params = [], []
         if run_id:
             where.append('a.run_id = ?')
             params.append(run_id)
         cutoff = RANGES.get(time_range)
         if cutoff is not None:
-            where.append('a.published_at >= ?')
+            where.append(f'a.{date_column} >= ?')
             params.append(iso(datetime.now(timezone.utc) - cutoff))
         if topic and 'topic' not in skip:
             where.append('a.topic = ?')
@@ -311,6 +313,15 @@ class Store:
                     {'hour': r[0], 'topic': r[1], 'count': r[2]} for r in db.execute(
                         f'SELECT substr(a.published_at, 1, 13), a.topic, COUNT(*) {base} WHERE {where} '
                         'GROUP BY 1, 2 ORDER BY 1', params)]
+                # Same counts by *collection* date (when a refresh saved the article), for the chart's
+                # "Collected" view. The time window applies to collected_at, and the topic filter is
+                # skipped so the legend can still show every topic; the browser applies the topic.
+                cw, cp = self._filters(q, time_range, topic, list(sources), skip=('topic',), run_id=run_id,
+                                       date_column='collected_at')
+                histogram_collected = [] if offset else [
+                    {'hour': r[0], 'topic': r[1], 'count': r[2]} for r in db.execute(
+                        f'SELECT substr(a.collected_at, 1, 13), a.topic, COUNT(*) {base} WHERE {cw} '
+                        'GROUP BY 1, 2 ORDER BY 1', cp)]
             except sqlite3.OperationalError as exc:
                 if 'fts5' in str(exc).lower() or 'syntax' in str(exc).lower():
                     raise ValueError('Could not understand the search query') from exc
@@ -323,6 +334,7 @@ class Store:
             'facets': {'topics': facets['topic'], 'sources': facets['source_name']},
             'terms': trending_terms([(r['title'], r['summary']) for r in sample]),
             'histogram': histogram,
+            'histogram_collected': histogram_collected,
             'range_start': iso(datetime.now(timezone.utc) - RANGES[time_range]) if RANGES[time_range] else None,
         }
 
@@ -331,6 +343,19 @@ class Store:
             rows = db.execute('SELECT * FROM articles WHERE published_at >= ? ORDER BY published_at DESC LIMIT ?',
                               (iso(datetime.now(timezone.utc) - timedelta(hours=hours)), limit)).fetchall()
         return [dict(r) for r in rows]
+
+    def published_days(self, run_id):
+        """Articles one refresh added, counted per publication day in the server's local time,
+        oldest first: [('2026-10-15', 1), ('2026-10-16', 15)]."""
+        if not run_id:
+            return []
+        with self._conn() as db:
+            stamps = [r[0] for r in db.execute('SELECT published_at FROM articles WHERE run_id = ?', (run_id,))]
+        days = {}
+        for stamp in stamps:
+            day = datetime.fromisoformat(stamp.replace('Z', '+00:00')).astimezone().date().isoformat()
+            days[day] = days.get(day, 0) + 1
+        return sorted(days.items())
 
     def checkpoint(self):
         """Fold the write-ahead log into the main file (clean state for shutdown/backup)."""
