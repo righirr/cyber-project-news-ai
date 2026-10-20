@@ -24,6 +24,7 @@ DEFAULT_SOURCES = [
      'https://cloudblog.withgoogle.com/topics/threat-intelligence/rss/'),
     ('FortiGuard Labs', 'https://www.fortinet.com/blog/threat-research',
      'https://feeds.fortinet.com/fortinet/blog/threat-research'),
+    ('Cyber Security News', 'https://cybersecuritynews.com/', 'https://cybersecuritynews.com/feed/'),
 ]
 
 SCHEMA = """
@@ -256,13 +257,18 @@ class Store:
                                (a['summary'], a['summary_kind'], a['topic'], row['id']))
         return added
 
-    def _filters(self, q, time_range, topic, sources, *, skip=(), run_id=None, date_column='published_at'):
+    def _filters(self, q, time_range, topic, sources, *, skip=(), run_id=None, date_column='published_at', day=None):
         """WHERE clause shared by the list, facets and charts. The time window applies to
         `date_column`: publication date for the list, collection date for the "collected" chart."""
         where, params = [], []
         if run_id:
             where.append('a.run_id = ?')
             params.append(run_id)
+        if day:  # one calendar day: (start, end, 'published' | 'collected'), UTC instants
+            start, end, basis = day
+            column = 'collected_at' if basis == 'collected' else 'published_at'
+            where.append(f'a.{column} >= ? AND a.{column} < ?')
+            params.extend([start, end])
         cutoff = RANGES.get(time_range)
         if cutoff is not None:
             where.append(f'a.{date_column} >= ?')
@@ -279,7 +285,7 @@ class Store:
         return (' AND '.join(where) or '1'), params
 
     def search(self, text='', time_range='7d', topic='', sources=(), sort='', limit=48, offset=0,
-               run_id=None):
+               run_id=None, day=None):
         if time_range not in RANGES:
             raise ValueError('range must be one of ' + ', '.join(RANGES))
         if topic and topic not in TOPICS:
@@ -287,7 +293,7 @@ class Store:
         q = fts_query(text or '')
         sort = sort or ('relevance' if q else 'newest')
         base = 'FROM articles a JOIN articles_fts ON articles_fts.rowid = a.id' if q else 'FROM articles a'
-        where, params = self._filters(q, time_range, topic, list(sources), run_id=run_id)
+        where, params = self._filters(q, time_range, topic, list(sources), run_id=run_id, day=day)
         cols = ', '.join('a.' + c for c in ARTICLE_COLUMNS)
         if q:
             cols += (", highlight(articles_fts, 0, char(2), char(3)) AS title_hl"
@@ -302,7 +308,7 @@ class Store:
                 facets = {}
                 for column, skip in (('topic', 'topic'), ('source_name', 'sources')):
                     fw, fp = self._filters(q, time_range, topic, list(sources), skip=(skip,),
-                                           run_id=run_id)
+                                           run_id=run_id, day=day)
                     facets[column] = {r[0]: r[1] for r in db.execute(
                         f'SELECT a.{column}, COUNT(*) {base} WHERE {fw} GROUP BY a.{column}', fp)}
                 sample = db.execute(f'SELECT a.title, a.summary {base} WHERE {where} '
@@ -317,7 +323,7 @@ class Store:
                 # "Collected" view. The time window applies to collected_at, and the topic filter is
                 # skipped so the legend can still show every topic; the browser applies the topic.
                 cw, cp = self._filters(q, time_range, topic, list(sources), skip=('topic',), run_id=run_id,
-                                       date_column='collected_at')
+                                       date_column='collected_at', day=day)
                 histogram_collected = [] if offset else [
                     {'hour': r[0], 'topic': r[1], 'count': r[2]} for r in db.execute(
                         f'SELECT substr(a.collected_at, 1, 13), a.topic, COUNT(*) {base} WHERE {cw} '
@@ -343,6 +349,17 @@ class Store:
             rows = db.execute('SELECT * FROM articles WHERE published_at >= ? ORDER BY published_at DESC LIMIT ?',
                               (iso(datetime.now(timezone.utc) - timedelta(hours=hours)), limit)).fetchall()
         return [dict(r) for r in rows]
+
+    def calendar_counts(self, start, end):
+        """Whole-database counts for the calendar: articles per UTC hour by publication and by
+        collection date within [start, end). The browser groups the hours into its local days."""
+        out = {}
+        with self._conn() as db:
+            for basis, column in (('published', 'published_at'), ('collected', 'collected_at')):
+                out[basis] = [{'hour': r[0], 'count': r[1]} for r in db.execute(
+                    f'SELECT substr({column}, 1, 13), COUNT(*) FROM articles WHERE {column} >= ? AND {column} < ? '
+                    'GROUP BY 1 ORDER BY 1', (start, end))]
+        return out
 
     def published_days(self, run_id):
         """Articles one refresh added, counted per publication day in the server's local time,

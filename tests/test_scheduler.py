@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pulse.collector import Busy, Collector, Jobs
 from pulse.scheduler import DailyScheduler, latest_slot, next_slot_after, parse_hhmm
-from pulse.store import Store
+from pulse.store import DEFAULT_SOURCES, Store
 
 from tests.fixtures import LONG, FakeNet, NoAI, rss
 
@@ -79,7 +79,7 @@ class SchedulerTests(unittest.TestCase):
         names, days, scope = self.jobs.started[0]
         self.assertEqual(scope, 'scheduled')
         self.assertEqual(days, self.store.settings()['lookback_days'])
-        self.assertEqual(len(names), 6)  # all enabled default sources
+        self.assertEqual(len(names), len(DEFAULT_SOURCES))  # all enabled default sources
         self.clock.at('2026-09-28T09:00:00')
         self.assertIsNone(self.scheduler.run_if_due())  # only once per day
         self.assertEqual(self.scheduler.status()['next_run'][:16], '2026-09-29T02:00')
@@ -92,7 +92,7 @@ class SchedulerTests(unittest.TestCase):
         self.clock.at('2026-09-28T02:01:00')
         self.scheduler.run_if_due()
         self.assertNotIn(sources[0]['name'], self.jobs.started[0][0])
-        self.assertEqual(len(self.jobs.started[0][0]), 5)
+        self.assertEqual(len(self.jobs.started[0][0]), len(DEFAULT_SOURCES) - 1)
 
     def test_missed_run_is_caught_up_once_after_restart(self):
         self.scheduler.initialize()

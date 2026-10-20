@@ -49,6 +49,20 @@ Besides manual refreshes, the app collects from all **enabled** sources once a d
 
 The chart header has a **Collected | Published** switch. *Collected* counts articles by the day a refresh saved them, which matches the refresh log. *Published* counts them by the day the source published them, which matches the list. A nightly refresh mostly collects the previous day's news, so the two views differ by about a day.
 
+## Daily news calendar
+
+The About dialog (ⓘ) opens with a month calendar of how many articles were **published** and **collected** each day, for the whole database. Days are coloured **green, yellow, orange or red** from fewest to most articles (quarters of the month's busiest day; the legend shows each colour's range). The *Published | Collected* switch, shared with the chart, picks which number drives the colours. **Click a day** to list its articles on the main page; a banner offers *Show all news* to go back. At any time, **Clear filters** in the filter bar (with a count of active filters) returns to all collected news.
+
+## Loading a source's history (backfill)
+
+A refresh keeps the newest articles of each source (up to its *Articles* limit). To load a source's recent history, for example right after adding it, run:
+
+```bash
+python3 server.py --backfill "Cyber Security News" --days 15
+```
+
+With Docker, prefix it with `docker compose run --rm pulse`. It reads the feed page by page until the window (1–30 days) is covered, adds only articles not already stored, and writes one line to the refresh log.
+
 ## Refresh log
 
 Every refresh, manual or automatic, appends one line to **`data/refresh.log`**: date and time, kind of refresh, result, number of new articles, duration, new articles per source, and errors. For example:

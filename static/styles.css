@@ -201,6 +201,10 @@ svg { width: 18px; height: 18px; flex: none; }
 .chip[aria-pressed="true"] { background: var(--cbg, var(--glow-a)); border-color: var(--c, var(--accent)); color: var(--c, var(--accent)); }
 .chip[aria-pressed="true"] .n { color: inherit; }
 .sort { margin-left: auto; }
+.clear-filters { padding: 7px 12px; font-size: 13px; }
+.clear-filters .n { margin-left: 2px; padding: 1px 7px; border-radius: 99px; background: var(--grad); color: var(--accent-ink); font: 600 11px var(--mono); }
+.clear-filters:disabled { opacity: .45; cursor: default; }
+.clear-filters:disabled:hover { border-color: var(--line-strong); color: var(--ink); }
 .sort select { height: 36px; padding: 0 30px 0 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--field); font-size: 13px; cursor: pointer; }
 
 /* ===== News-per-day chart ================================================ */
@@ -275,6 +279,7 @@ svg { width: 18px; height: 18px; flex: none; }
 
 /* ===== Feed ============================================================== */
 .feed:focus { outline: 0; }
+.feed { scroll-margin-top: 150px; }  /* keep banners clear of the sticky top and filter bars */
 .feed-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
 .feed-head h2 { font-size: 26px; }
 .result-count { margin: 0; font: 12px var(--mono); color: var(--muted); }
@@ -406,6 +411,42 @@ input:focus { border-color: var(--accent); }
 .data-facts dd.sub { margin-top: 2px; font: 11px var(--mono); color: var(--muted); }
 .auto-foot::before { content: "⏱ "; }
 .log-lines { margin: 8px 0 0; padding: 10px 12px; max-height: 180px; overflow: auto; border-radius: 8px; border: 1px solid var(--line); background: var(--field); font: 11.5px/1.6 var(--mono); color: var(--ink-2); white-space: pre; }
+/* ----- daily news calendar (About dialog) ----- */
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cal-basis button { padding: 5px 12px; font-size: 12px; }
+.cal-nav { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; flex-wrap: wrap; }
+.cal-month { min-width: 150px; text-align: center; font: 600 15px var(--display); }
+.cal-total { margin-left: auto; font: 12px var(--mono); color: var(--muted); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cal-weekday { padding: 0 2px 2px; font: 500 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: center; }
+.cal-cell { position: relative; display: grid; grid-template-rows: auto 1fr auto; gap: 2px; min-height: 74px; padding: 6px 7px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-solid); color: var(--ink-2); text-align: left; font: inherit; overflow: hidden; }
+/* Four volume levels: green (fewest) -> yellow -> orange -> red (most). Tinted fills keep the
+   text in the normal ink colours; the counts and the legend ranges carry the exact meaning. */
+.cal-grid { --lv1: #22c55e; --lv2: #eab308; --lv3: #f97316; --lv4: #ef4444; --lv-mix: 34%; }
+:root[data-theme="light"] .cal-grid { --lv-mix: 30%; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .cal-grid { --lv-mix: 30%; } }
+.cal-cell.lv1 { --lv: var(--lv1); } .cal-cell.lv2 { --lv: var(--lv2); } .cal-cell.lv3 { --lv: var(--lv3); } .cal-cell.lv4 { --lv: var(--lv4); }
+.cal-cell[class*=" lv"] { background: color-mix(in srgb, var(--lv) var(--lv-mix), var(--surface-solid)); border-color: color-mix(in srgb, var(--lv) 70%, transparent); }
+.cal-cell.blank { visibility: hidden; }
+.cal-cell.future { opacity: .45; }
+.cal-cell:not(:disabled) { cursor: pointer; }
+.cal-cell:not(:disabled):hover { border-color: var(--accent); }
+.cal-cell.today { border: 2px solid var(--accent-2); }
+.cal-cell.selected { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cal-day { font: italic 400 24px/1 'Instrument Serif', Georgia, serif; letter-spacing: -.01em; color: var(--ink); }
+.cal-n { font: 11px/1.3 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-n b { font-weight: 600; color: var(--ink-2); }
+.cal-n.on { color: var(--ink); }
+.cal-n.on b { font: 700 15px var(--display); color: var(--ink); }
+.cal-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font: 11px var(--mono); color: var(--muted); }
+.cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.cal-legend .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line-strong); background: var(--surface-solid); }
+.cal-levels { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; }
+.cal-levels span { display: inline-flex; align-items: center; gap: 6px; }
+.cal-legend .sw.lv1 { background: #22c55e; } .cal-legend .sw.lv2 { background: #eab308; }
+.cal-legend .sw.lv3 { background: #f97316; } .cal-legend .sw.lv4 { background: #ef4444; }
+.cal-legend .sw.today { border: 2px solid var(--accent-2); }
+.cal-legend .cal-key { display: none; }
 .about-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .about-cols .about-block { margin-bottom: 12px; }
 .tech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -438,12 +479,21 @@ input:focus { border-color: var(--accent); }
   .topbar { position: static; }
   .brand-text strong { font-size: 14px; }
   .controls { position: static; }
+  .feed { scroll-margin-top: 12px; }  /* bars are not sticky on phones */
   .controls-inner { gap: 10px; }
   .segmented { width: 100%; overflow-x: auto; }
   .segmented button { flex: 1; padding: 7px 8px; }
   .chips { flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 2px; }
   .sidebar, .briefing-grid, .settings-row, .tech-grid, .about-cols { grid-template-columns: 1fr; }
   .data-facts { grid-template-columns: 1fr 1fr; }
+  .cal-grid { gap: 3px; }
+  .cal-cell { min-height: 58px; padding: 4px; }
+  .cal-word { display: none; }  /* too narrow for words: large = chosen basis, small = the other */
+  .cal-n { font-size: 10px; overflow: visible; text-overflow: clip; }
+  .cal-n.on b { font-size: 13px; }
+  .cal-day { font-size: 19px; }
+  .cal-legend .cal-key { display: inline; flex-basis: 100%; }
+  .cal-total { margin-left: 0; flex-basis: 100%; }
   .briefing-grid .brief-card:first-child { grid-column: auto; }
   .grid { grid-template-columns: 1fr; }
   .stat dd { font-size: 28px; }

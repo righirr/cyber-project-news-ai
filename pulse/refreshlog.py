@@ -50,7 +50,9 @@ class RefreshLog:
             log.warning('Could not write the refresh log %s: %s', self.path, exc)
 
     @staticmethod
-    def kind(scope):
+    def kind(scope, days=None):
+        if scope == 'backfill':
+            return f'backfill ({days} days)' if days else 'backfill'
         return {'scheduled': 'automatic refresh', 'all': 'manual refresh (all enabled sources)',
                 'selected': 'manual refresh (selected sources)'}.get(scope, f'{scope} refresh')
 
@@ -64,7 +66,7 @@ class RefreshLog:
         if job.get('error'):
             errors = '; '.join(filter(None, [errors, _one_line(job['error'])]))
         self._append(' | '.join([
-            _local(job['started_at']), self.kind(job.get('scope')), job['status'],
+            _local(job['started_at']), self.kind(job.get('scope'), job.get('days')), job['status'],
             f"{job['added']} new article{'s' if job['added'] != 1 else ''}{_published(job.get('published'))}",
             f"{(finished - started).total_seconds():.1f} s",
             per_source or 'no sources',

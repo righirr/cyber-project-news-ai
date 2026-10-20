@@ -24,11 +24,13 @@ class Busy(RuntimeError):
 
 
 class Collector:
-    def __init__(self, store, ai, fetcher=netguard.fetch, workers=6):
+    def __init__(self, store, ai, fetcher=netguard.fetch, workers=6, page_delay=0.4, max_pages=120):
         self.store = store
         self.ai = ai
         self.fetch = fetcher
         self.workers = workers
+        self.page_delay = page_delay  # pause between feed pages during a backfill (be polite)
+        self.max_pages = max_pages    # safety limit for a backfill
 
     # ----- feed resolution -------------------------------------------------
     def _get_feed(self, url):
@@ -94,10 +96,46 @@ class Collector:
         item['summary'], item['summary_kind'] = headline_summary(item['title'], item['source_name']), 'headline'
         return item
 
-    def _collect_source(self, source, days):
+    def _backfill_entries(self, source, days):
+        """All feed entries of the last `days`, following WordPress-style paging (?paged=2, 3, ...).
+
+        Stops when a page reaches past the window, the site has no more pages (error or not a
+        feed), or a page brings nothing new (feeds that ignore the paging parameter).
+        """
+        entries, feed_url, via = self._resolve_entries(source, days)
+        pages = 1
+        if via != 'feed' or not feed_url:
+            return entries, feed_url, via, pages  # Google News results cannot be paged
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        seen = {e['link'] for e in entries}
+        separator = '&' if '?' in feed_url else '?'
+        while pages < self.max_pages:
+            dated = [e['published'] for e in entries if e['published']]
+            if dated and min(dated) < cutoff:
+                break
+            if self.page_delay:
+                time.sleep(self.page_delay)
+            try:
+                final, body = self._get_feed(f'{feed_url}{separator}paged={pages + 1}')
+                page = parse_feed(body, final)
+            except (netguard.FetchError, ValueError):
+                break
+            fresh = [e for e in page if e['link'] and e['link'] not in seen]
+            if not fresh:
+                break
+            seen.update(e['link'] for e in fresh)
+            entries.extend(fresh)
+            pages += 1
+        return entries, feed_url, via, pages
+
+    def _collect_source(self, source, days, backfill=False):
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(days=days)
-        entries, feed_url, via = self._resolve_entries(source, days)
+        pages = 1
+        if backfill:
+            entries, feed_url, via, pages = self._backfill_entries(source, days)
+        else:
+            entries, feed_url, via = self._resolve_entries(source, days)
         items, off_topic = [], 0
         for entry in entries:
             if not entry['link']:
@@ -113,22 +151,23 @@ class Collector:
                           'title': entry['title'], 'title_key': title_key(entry['title']), 'text': text,
                           'published_at': iso(published), 'topic': classify(entry['title'], text)})
         items.sort(key=lambda i: i['published_at'], reverse=True)
-        items = items[:source['max_items']]
+        if not backfill:  # a backfill takes the whole window; a refresh keeps the newest max_items
+            items = items[:source['max_items']]
         # Only articles not stored yet (by URL or by headline) are summarised and saved, so a
         # refresh — manual or automatic — brings only news collected for the first time.
         new = self.store.unknown(items)
         with ThreadPoolExecutor(max_workers=4) as pool:
             new = list(pool.map(self._summarise, new))
-        return new, {'found': len(items), 'off_topic': off_topic, 'via': via, 'feed_url': feed_url}
+        return new, {'found': len(items), 'off_topic': off_topic, 'via': via, 'feed_url': feed_url, 'pages': pages}
 
     # ----- run -------------------------------------------------------------
-    def collect(self, sources, days, on_update=lambda *a, **k: None, run_id=None):
+    def collect(self, sources, days, on_update=lambda *a, **k: None, run_id=None, backfill=False):
         pending = []
 
         def run(source):
             on_update(source['id'], state='running')
             try:
-                new, info = self._collect_source(source, days)
+                new, info = self._collect_source(source, days, backfill=backfill)
             except Exception as exc:  # one failing source must not abort the others
                 message = str(exc) or exc.__class__.__name__
                 self.store.record_source_check(source['id'], None, message)
@@ -191,12 +230,13 @@ class Jobs:
     def running(self):
         return any(j['status'] == 'running' for j in self._jobs.values())
 
-    def start(self, sources, days, scope):
+    def start(self, sources, days, scope, backfill=False):
         with self._lock:
             if self.running():
                 raise Busy('A collection is already running')
             job_id = str(next(self._ids))
             job = {'id': job_id, 'run': f'{now_iso()}-{secrets.token_hex(4)}',  # tags the articles it adds
+                   'backfill': backfill,
                    'status': 'running', 'phase': 'collecting', 'scope': scope, 'days': days,
                    'started_at': now_iso(), 'finished_at': None, 'added': 0, 'error': None,
                    'sources': [{'id': s['id'], 'name': s['name'], 'state': 'pending', 'found': 0, 'new': 0,
@@ -234,7 +274,7 @@ class Jobs:
     def _run(self, job, sources, days):
         try:
             added = self.collector.collect(sources, days, lambda sid, **f: self._update(job, sid, **f),
-                                           run_id=job['run'])
+                                           run_id=job['run'], backfill=job.get('backfill', False))
             total = sum(added.values())
             with self._lock:
                 for entry in job['sources']:

@@ -24,6 +24,7 @@ const state = {
   status: null, sourceConfig: [], settings: { lookback_days: 7, default_max_items: 10 },
   newRun: null, newCount: 0,  // set after a refresh: show only the articles it added
   chartBasis: 'published', chartData: null,  // chart counts by 'collected' or 'published' day
+  day: null, dayPrevRange: '7d',  // one calendar day opened from the About calendar
 };
 const previousVisit = Number(storage.get('pulse.lastVisit')) || 0;
 let requestSeq = 0;
@@ -234,6 +235,11 @@ async function loadArticles({ append = false } = {}) {
   if (state.sort) params.set('sort', state.sort);
   for (const s of state.sources) params.append('source', s);
   if (state.newRun) params.set('run', state.newRun);
+  if (state.day) {
+    params.set('day_start', state.day.start);
+    params.set('day_end', state.day.end);
+    params.set('day_basis', state.day.basis);
+  }
   writeUrl();
   const grid = $('#grid');
   grid.setAttribute('aria-busy', 'true');
@@ -285,6 +291,120 @@ function card(article, index) {
       el('span', { class: 'read', 'aria-hidden': 'true' }, 'Read ↗')));
 }
 
+/** Published/Collected is one shared choice for the chart and the calendar. */
+function setBasis(basis) {
+  state.chartBasis = basis === 'collected' ? 'collected' : 'published';
+  storage.set('pulse.chartBasis', state.chartBasis);
+  renderChart();
+  renderCalendar();
+}
+
+// ----- daily news calendar (About dialog) -------------------------------------
+const cal = { year: 0, month: 0, days: {} };   // month is 0-11; days: 'YYYY-MM-DD' -> {published, collected}
+const utcInstant = date => date.toISOString().slice(0, 19) + 'Z';
+const dayKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+async function loadCalendar(year, month) {
+  const first = new Date(year, month, 1);
+  cal.year = first.getFullYear();
+  cal.month = first.getMonth();
+  $('#calMonth').textContent = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  try {
+    const data = await api(`/api/calendar?start=${utcInstant(first)}&end=${utcInstant(new Date(cal.year, cal.month + 1, 1))}`);
+    const days = {};
+    for (const basis of ['published', 'collected']) {
+      for (const { hour, count } of data[basis]) {   // UTC hour -> this browser's local day
+        const key = dayKey(new Date(`${hour}:00:00Z`));
+        days[key] = days[key] || { published: 0, collected: 0 };
+        days[key][basis] += count;
+      }
+    }
+    cal.days = days;
+  } catch (error) {
+    cal.days = {};
+    $('#calTotal').textContent = `Could not load the calendar: ${error.message}`;
+    return;
+  }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  if (!$('#calGrid') || !cal.year) return;
+  const basis = state.chartBasis;
+  $('#calBasis').replaceChildren(...[['collected', 'Collected'], ['published', 'Published']].map(([value, label]) => el('button', {
+    type: 'button', 'aria-pressed': String(basis === value),
+    title: value === 'collected' ? 'Shade and open days by the day a refresh collected the articles (matches the refresh log)'
+      : 'Shade and open days by the day the source published the articles',
+    onclick: () => { if (basis !== value) setBasis(value); },
+  }, label)));
+
+  const inMonth = Object.entries(cal.days).filter(([key]) => key.startsWith(`${cal.year}-${String(cal.month + 1).padStart(2, '0')}-`));
+  const totals = inMonth.reduce((t, [, v]) => ({ published: t.published + v.published, collected: t.collected + v.collected }), { published: 0, collected: 0 });
+  $('#calTotal').textContent = `${fmt(totals.published)} published · ${fmt(totals.collected)} collected this month`;
+  $('#calKey').textContent = `Large number: ${basis} · small: ${basis === 'published' ? 'collected' : 'published'}`;
+  const max = Math.max(1, ...inMonth.map(([, v]) => v[basis]));
+  // Four levels relative to the month's busiest day: green (fewest), yellow, orange, red (most).
+  const level = n => (n ? Math.min(4, Math.ceil((4 * n) / max)) : 0);
+  const names = ['', 'green', 'yellow', 'orange', 'red'];
+  const ranges = [1, 2, 3, 4].map(k => [Math.floor(((k - 1) * max) / 4) + 1, Math.floor((k * max) / 4)])
+    .map(([low, high], i) => ({ k: i + 1, low, high })).filter(r => r.low <= r.high);
+  $('#calLevels').replaceChildren(el('span', {}, `${basis[0].toUpperCase()}${basis.slice(1)} per day:`),
+    ...ranges.map(r => el('span', { title: `${names[r.k]}: ${r.low === r.high ? r.low : `${r.low}–${r.high}`} articles` },
+      el('i', { class: `sw lv${r.k}` }), r.low === r.high ? fmt(r.low) : `${fmt(r.low)}–${fmt(r.high)}`)));
+
+  const cells = [];
+  for (let d = 0; d < 7; d++) {   // weekday headers in the browser's language, Sunday first
+    cells.push(el('div', { class: 'cal-weekday' }, new Date(2026, 0, 4 + d).toLocaleDateString(undefined, { weekday: 'short' })));
+  }
+  const first = new Date(cal.year, cal.month, 1);
+  for (let i = 0; i < first.getDay(); i++) cells.push(el('div', { class: 'cal-cell blank', 'aria-hidden': 'true' }));
+  const todayKey = dayKey(new Date());
+  const daysInMonth = new Date(cal.year, cal.month + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(cal.year, cal.month, d);
+    const key = dayKey(date);
+    const counts = cal.days[key] || { published: 0, collected: 0 };
+    const n = counts[basis];
+    const long = date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+    const future = key > todayKey;
+    const line = which => el('span', { class: `cal-n${which === basis ? ' on' : ''}` },
+      el('b', {}, fmt(counts[which])), el('span', { class: 'cal-word' }, ` ${which}`));
+    const cell = el('button', {
+      type: 'button',
+      class: `cal-cell${n ? ` lv${level(n)}` : ''}${key === todayKey ? ' today' : ''}${future ? ' future' : ''}${state.day && state.day.key === key && state.day.basis === basis ? ' selected' : ''}`,
+      disabled: n === 0,
+      title: `${long}: ${fmt(counts.published)} published, ${fmt(counts.collected)} collected${n ? ` (${names[level(n)]}) — click to list the ${fmt(n)} ${basis}` : ''}`,
+      'aria-label': `${long}: ${counts.published} published, ${counts.collected} collected.${n ? ` Show the ${n} ${basis}.` : ''}`,
+      onclick: () => openDay(key, basis),
+    }, el('span', { class: 'cal-day' }, String(d)), line(basis), line(basis === 'published' ? 'collected' : 'published'));
+    cells.push(cell);
+  }
+  $('#calGrid').replaceChildren(...cells);
+}
+
+/** List one local day's articles (by the chosen basis) on the main page. */
+function openDay(key, basis) {
+  const [y, m, d] = key.split('-').map(Number);
+  const start = new Date(y, m - 1, d);
+  if (!state.day) state.dayPrevRange = state.range;
+  state.day = {
+    key, basis, start: utcInstant(start), end: utcInstant(new Date(y, m - 1, d + 1)),
+    label: start.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+  };
+  state.newRun = null; state.newCount = 0;
+  state.range = 'all';
+  renderRange();
+  $('#aboutDialog').close();
+  loadArticles().then(() => $('#feed').scrollIntoView({ block: 'start' }));
+}
+
+function openCalendar() {
+  const focus = state.day ? new Date(state.day.start) : new Date();
+  loadCalendar(focus.getFullYear(), focus.getMonth());
+  $('#aboutDialog').showModal();
+  requestAnimationFrame(() => $('#calTitle').scrollIntoView({ block: 'start' }));
+}
+
 function renderChart() {
   const data = state.chartData;
   if (!data) return;
@@ -293,7 +413,7 @@ function renderChart() {
     range: state.range, rangeStart: data.range_start, facets: data.facets,
     topic: state.topic, filtered: Boolean(state.q || state.topic || state.sources.size || state.newRun),
     onTopic: topic => setTopic(topic),
-    onBasis: basis => { state.chartBasis = basis; storage.set('pulse.chartBasis', basis); renderChart(); },
+    onBasis: setBasis,
   });
 }
 
@@ -384,16 +504,19 @@ function renderActiveFilters() {
   const pill = (label, onRemove) => el('span', { class: 'pill' }, label,
     el('button', { type: 'button', 'aria-label': `Remove filter ${label}`, onclick: onRemove }, '×'));
   renderNewOnlyNotice();
+  renderDayNotice();
+  renderClearFilters();
   if (state.q) pills.push(pill(`Search: ${state.q}`, () => setQuery('')));
   if (state.topic) pills.push(pill(`Topic: ${state.topic}`, () => setTopic('')));
   for (const s of state.sources) pills.push(pill(`Source: ${s}`, () => { state.sources.delete(s); loadArticles(); }));
-  if (pills.length > 1) pills.push(el('button', { class: 'link-btn', type: 'button', onclick: clearFilters }, 'Clear all'));
+  if (pills.length > 1) pills.push(el('button', { class: 'link-btn', type: 'button', onclick: () => showAllCollected({ scroll: false }) }, 'Clear all'));
   $('#activeFilters').replaceChildren(...pills);
 }
 
 // ----- filter actions -------------------------------------------------------
 function setRange(range) {
   state.newRun = null; state.newCount = 0;  // choosing a time range leaves the "new only" view
+  state.day = null;                         // ... and the calendar's day view
   state.range = range; renderRange(); loadArticles();
 }
 function setTopic(topic) { state.topic = topic; loadArticles(); }
@@ -401,6 +524,7 @@ function setQuery(q) { state.q = q; $('#search').value = q; loadArticles(); }
 function clearFilters() {
   state.q = ''; state.topic = ''; state.sources.clear(); $('#search').value = '';
   clearNewOnly();
+  clearDay();
   loadArticles();
 }
 
@@ -417,6 +541,26 @@ function renderNewOnlyNotice() {
       total ? `Show all ${fmt(total)} collected articles` : 'Show all collected articles'));
 }
 
+function renderDayNotice() {
+  const box = $('#dayNotice');
+  if (!state.day) { box.hidden = true; return; }
+  box.hidden = false;
+  box.replaceChildren(
+    el('span', {}, `Articles ${state.day.basis} on `, el('strong', {}, state.day.label), ` — ${fmt(state.total)} article${state.total === 1 ? '' : 's'}`,
+      state.q || state.topic || state.sources.size ? ' matching the current filters.' : '.'),
+    el('span', { class: 'empty-actions' },
+      el('button', { class: 'btn btn-ghost', type: 'button', onclick: openCalendar }, 'Open calendar'),
+      el('button', { class: 'btn btn-ghost', type: 'button', onclick: () => showAllCollected({ scroll: false }) }, 'Show all news')));
+}
+
+/** Leave the day view and go back to the time range used before it. */
+function clearDay() {
+  if (!state.day) return;
+  state.day = null;
+  state.range = state.dayPrevRange || '7d';
+  renderRange();
+}
+
 /** Leave the "new only" view. Goes to All collected, so every stored article is visible. */
 function clearNewOnly() {
   if (!state.newRun) return;
@@ -427,13 +571,27 @@ function clearNewOnly() {
 }
 
 /** Everything that is stored: all dates, all topics, all sources, no search. */
-function showAllCollected() {
-  state.newRun = null; state.newCount = 0;
+function showAllCollected({ scroll = true } = {}) {
+  state.newRun = null; state.newCount = 0; state.day = null;
   state.q = ''; state.topic = ''; state.sources.clear(); $('#search').value = '';
   state.range = 'all';
   renderRange();
   loadArticles();
-  $('#feed').scrollIntoView({ block: 'start' });
+  if (scroll) $('#feed').scrollIntoView({ block: 'start' });
+}
+
+/** How many filters narrow the list right now (a time range other than All collected counts as one). */
+function activeFilterCount() {
+  return (state.day ? 1 : 0) + (state.newRun ? 1 : 0) + (state.q ? 1 : 0) + (state.topic ? 1 : 0)
+    + state.sources.size + (state.range !== 'all' ? 1 : 0);
+}
+
+function renderClearFilters() {
+  const button = $('#clearFilters');
+  const n = activeFilterCount();
+  button.disabled = n === 0;
+  button.replaceChildren('✕ Clear filters', n ? el('span', { class: 'n', 'aria-hidden': 'true' }, String(n)) : '');
+  button.setAttribute('aria-label', n ? `Clear ${n} filter${n === 1 ? '' : 's'} and show all collected news` : 'No filters to clear');
 }
 
 // ----- collection -----------------------------------------------------------
@@ -542,6 +700,7 @@ async function pollJob(id) {
   await Promise.all([loadStatus(), loadSources(), loadBriefing()]);
   if (job.status === 'done' && job.added) {
     // Show exactly what this refresh brought: the articles tagged with its run id.
+    state.day = null;
     state.newRun = job.run;
     state.newCount = job.added;
     state.q = ''; state.topic = ''; state.sources.clear(); $('#search').value = '';
@@ -677,6 +836,7 @@ function wireInfoTips() {
 
 function wire() {
   wireInfoTips();
+  $('#clearFilters').addEventListener('click', () => showAllCollected({ scroll: false }));
   // The statistic numbers are shortcuts: they show exactly the articles they count.
   for (const button of document.querySelectorAll('.stat-link')) {
     button.addEventListener('click', () => {
@@ -734,9 +894,14 @@ function wire() {
   });
   $('#resetSources').addEventListener('click', resetSources);
   $('#setAuto').addEventListener('change', event => { $('#setAutoTime').disabled = !event.target.checked; });
+  $('#calPrev').addEventListener('click', () => loadCalendar(cal.year, cal.month - 1));
+  $('#calNext').addEventListener('click', () => loadCalendar(cal.year, cal.month + 1));
+  $('#calToday').addEventListener('click', () => loadCalendar(new Date().getFullYear(), new Date().getMonth()));
   $('#openAbout').addEventListener('click', () => {
     loadStatus().catch(() => {});  // refresh the live storage figures
     loadRefreshLog();
+    const focus = state.day ? new Date(state.day.start) : new Date();
+    loadCalendar(focus.getFullYear(), focus.getMonth());
     $('#aboutDialog').showModal();
   });
   for (const dialog of document.querySelectorAll('dialog')) {

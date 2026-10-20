@@ -5,6 +5,7 @@ import mimetypes
 import re
 import socket
 import urllib.parse
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -60,6 +61,24 @@ def _run_or_none(value):
     if not re.fullmatch(r'[0-9A-Za-z:TZ-]{1,64}', value):
         raise ApiError(400, 'Invalid refresh identifier')
     return value
+
+
+ISO_UTC = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z')
+
+
+def _instant(value, name):
+    if not value or not ISO_UTC.fullmatch(value):
+        raise ApiError(400, f'{name} must look like 2026-10-17T03:00:00Z')
+    return value
+
+
+def _period(query, start_key, end_key, max_days):
+    """Validated [start, end) pair of UTC instants spanning at most max_days."""
+    start, end = _instant(query.get(start_key), start_key), _instant(query.get(end_key), end_key)
+    span = datetime.fromisoformat(end.replace('Z', '+00:00')) - datetime.fromisoformat(start.replace('Z', '+00:00'))
+    if not timedelta(0) < span <= timedelta(days=max_days):
+        raise ApiError(400, f'{end_key} must be after {start_key}, at most {max_days} days later')
+    return start, end
 
 
 def validate_sources(payload):
@@ -228,8 +247,24 @@ class Handler(BaseHTTPRequestHandler):
             limit=_int(query.get('limit', 48), 'limit', 1, 200),
             offset=_int(query.get('offset', 0), 'offset', 0, 100_000),
             run_id=_run_or_none(query.get('run')),
+            day=self._day(query),
         )
         self.send_json(200, result)
+
+    def _day(self, query):
+        """Optional one-day filter from the calendar: day_start/day_end (the browser's local
+        midnight-to-midnight as UTC instants) and day_basis ('published' or 'collected')."""
+        if not query.get('day_start') and not query.get('day_end'):
+            return None
+        start, end = _period(query, 'day_start', 'day_end', 2)  # 2 allows 25-hour DST days
+        basis = query.get('day_basis', 'published')
+        if basis not in ('published', 'collected'):
+            raise ApiError(400, 'day_basis must be published or collected')
+        return start, end, basis
+
+    def api_calendar(self, query):
+        start, end = _period(query, 'start', 'end', 45)
+        self.send_json(200, self.app.store.calendar_counts(start, end))
 
     def api_sources(self, query):
         self.send_json(200, {'sources': self.app.store.list_sources(), 'settings': self.app.store.settings()})
@@ -292,6 +327,7 @@ ROUTES = [
     ('GET', r'/api/refresh/(\d+)', Handler.api_job),
     ('GET', r'/api/briefing', Handler.api_briefing),
     ('GET', r'/api/refresh-log', Handler.api_refresh_log),
+    ('GET', r'/api/calendar', Handler.api_calendar),
 ]
 
 

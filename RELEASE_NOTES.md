@@ -4,6 +4,10 @@
 
 | Version | Date | Highlights |
 |---|---|---|
+| 4.5 | 2026-10-20 | Clear filters button |
+| 4.4.1 | 2026-10-20 | Calendar: four colours for daily volume, distinct day numbers |
+| 4.4 | 2026-10-20 | Daily news calendar in the About dialog |
+| 4.3 | 2026-10-20 | New source Cyber Security News, with a 15-day backfill |
 | 4.2 | 2026-10-19 | Collected vs published: chart switch and publication days in the log |
 | 4.1 | 2026-09-30 | About illustration |
 | 4.0.1 | 2026-09-29 | See every collected article |
@@ -25,6 +29,95 @@
 | 1.0 | 2026-08-28 | Original scope |
 
 Dates from 2.0 onwards are when each version was built, confirmed by the project's Git history. Versions 1.0–1.7 were built with OpenAI Codex. Their history was in a Git repository that has since been deleted, so only two dates survive: 1.0 from the original page's "curated 28 Aug 2026" stamp and asset date, and 1.7 from the last file changes of that era. Versions 1.1–1.6 fall between those two dates; their exact days were not recorded.
+
+## Version 4.5 · 2026-10-20 — Clear filters button
+
+After opening a day from the calendar (for example *today*, published) and perhaps narrowing it with a topic, there was no single, obvious way back to all the news. The available controls were scattered and behaved differently: a button in the day banner, a *Clear all* link that appeared only with two or more filters, and the × on each filter pill.
+
+- **New *Clear filters* button in the filter bar**, next to the sort menu. The filter bar stays at the top of the screen while you scroll, so the button is always within reach.
+- **It shows how many filters are active**: a calendar day, the "new from the last refresh" view, a search, a topic, each selected source, and a time range other than *All collected* each count as one. For example *Clear filters 2* after opening a calendar day and choosing a topic. When nothing narrows the list, it is greyed out.
+- **One click returns to all collected news**: it removes the calendar day, the "new from the last refresh" view, the search, the topic and the sources, and switches the time range to **All collected**. The list, topic counts, chart, trends and statistics all show the whole database again.
+- **The other "go back" controls now do exactly the same**: the day banner's *Show all news* button and the *Clear all* link next to the filter pills. Previously *Show all news* returned to the earlier time range but kept other filters.
+- Screen readers announce it as, for example, *Clear 2 filters and show all collected news*.
+
+Verified on a copy of the live database: opening **today** from the calendar (19 articles, *Clear filters 1*), then choosing *Vulnerability* (1 article, *Clear filters 2*), then pressing **Clear filters** listed all **580** articles with *All topics 580*, no day banner, the time range on *All collected*, and the button greyed out.
+
+## Version 4.4.1 · 2026-10-20 — Calendar: four colours for daily volume, distinct day numbers
+
+- **Days are coloured by how many articles they have**, in four steps from quiet to busy: **green** (fewest), **yellow**, **orange**, **red** (most). The steps are quarters of the month's busiest day, so each month uses the whole scale. With the October data: green 1–14, yellow 15–28, orange 29–42, red 43–56 articles published per day.
+- The colour follows the *Published | Collected* switch; *Published* is the default.
+- **The legend shows the actual article range of each colour**, recalculated for every month and switch position (for example *Published per day: 1–14 · 15–28 · 29–42 · 43–56*). Hovering over a day also names its colour.
+- Colour is never the only cue: every day still shows its exact counts, and the legend gives the ranges, so the calendar stays readable for colour-blind viewers (red and green are hard to tell apart for some people) and in print.
+- Fills are soft tints of the four colours, so the text stays in the normal ink colour and readable in both the dark and light themes.
+- **The day of the month uses its own typeface and size**: Instrument Serif italic at 24 px (19 px on phones), clearly distinct from the counts below it.
+- Replaces the single-colour cyan shading of 4.4.
+
+## Version 4.4 · 2026-10-20 — Daily news calendar in the About dialog
+
+Following the *Daily CVEs* calendar of the Vulnerability Intelligence application, the About dialog (the ⓘ Information button) now opens with a **daily news calendar**.
+
+### What it shows
+
+- **A month at a time**, Sunday first, with **‹ ›** to change month and **Today** to come back. The header gives the month's totals, for example *501 published · 510 collected this month*.
+- **Every day shows two numbers: how many articles were published that day and how many were collected that day**, by a manual, automatic or backfill refresh. The whole database is counted, not just the current filters.
+- **A Published | Collected switch** chooses which number is shown large, which one shades the day (light for fewer articles, stronger for more, on a square-root scale so one very busy day doesn't wash out the rest), and what a click opens. It is the same switch as the *News per day* chart's: changing one changes the other, so the calendar and chart always agree.
+- Today is outlined. Future days and days with nothing for the chosen basis are dimmed and can't be clicked. Hover over a day (or use a screen reader) for its full date and both counts.
+- Days follow **your browser's time zone**, the same as the chart. *Collected* matches the refresh log day by day.
+- On phones the words are dropped and each day shows its two numbers, the large one being the chosen basis; a key under the calendar says which is which.
+
+### Click a day to list its articles
+
+- Clicking a day (mouse, or keyboard and Enter) closes the dialog and lists **that day's articles** on the main page, either published or collected that day according to the switch. A banner names the day, for example *Articles collected on Saturday, October 17, 2026 — 16 articles*, with **Open calendar** and **Show all news** buttons.
+- In the day view the topic chips, source filter, search, chart, trends and sorting all work on just that day's articles, and the banner says when other filters narrow it further.
+- **Show all news** returns to all collected news (since 4.5; it first returned to the earlier time range). Choosing a time range, *Clear filters*, *Clear all* or a new refresh also leaves the day view.
+
+### Verified with the real data
+
+On a copy of the live database (580 articles), **Oct 17** showed **8 published / 16 collected**. Clicking it with *Published* listed 8 articles; with *Collected* it listed exactly the **16** of that night's refresh-log line. **Oct 20** showed **305 collected** (the 297 backfilled articles plus 8 from a manual refresh). *Show all news* returned to *7 days*, and the grid fits a phone screen without cutting any number.
+
+### Engineering
+
+- New `GET /api/calendar?start=…&end=…` (UTC instants, at most 45 days) returns per-hour counts by publication and by collection date. The browser groups them into its local days.
+- `GET /api/articles` accepts `day_start`, `day_end` (at most 2 days apart) and `day_basis` (`published` or `collected`). The day filter is part of the shared filter builder, so the list, facets, chart and trending terms all narrow to it together. Invalid values return HTTP 400.
+- Day cells are real buttons (keyboard and screen-reader friendly); shading is set through CSS variables, keeping the strict Content-Security-Policy.
+- Added 7 tests (105 in total). They cover publication- and collection-day filtering with exact day boundaries, combination with topic, source and search, facets and chart data, calendar counts, the endpoints over HTTP, and rejection of malformed, reversed or over-long periods and unknown bases.
+
+## Version 4.3 · 2026-10-20 — New source Cyber Security News, with a 15-day backfill
+
+### New source
+
+- **Cyber Security News** (`https://cybersecuritynews.com/`) is now the seventh monitored source. It uses the same configuration as the other six: **enabled, 10 articles per refresh, off-topic filter on**. Its feed (`https://cybersecuritynews.com/feed/`) was discovered automatically and is remembered for future refreshes.
+- It is also part of the default source list, so *Reset to defaults* in *Manage sources* and new installations include it.
+
+### Its last 15 days loaded into the database
+
+- The site's articles published in the **last 15 days were collected in one go: 297 new articles**, published from Oct 6 to Oct 20. The database grew from **283 to 580 articles**. Each article went through the normal pipeline: off-topic filter, topic classification, feed-abstract summary, search index.
+- This needed more than a normal refresh, because the site is very active: one feed page holds only about 6 hours of news. The backfill read the feed **page by page** (`/feed/?paged=2`, `3`, …) until it reached 15 days back.
+- The run is in the refresh log like any other:
+  `2026-10-20 14:10:30 -03 | backfill (15 days) | done | 297 new articles (published Oct 05: 1, Oct 06: 22, … Oct 20: 18) | 66.0 s | Cyber Security News: 297 | errors: none`
+- Checked afterwards: every article is within the 15 days, there are no duplicate links, the search index covers all 580 articles, the other six sources are unchanged, and the *News per day* chart, list and statistics all show the new totals (Indexed articles 580, Active sources 7/7).
+
+### New: `--backfill` command
+
+Use it to load the recent history of any source, for example after adding one:
+
+```bash
+python3 server.py --backfill "Cyber Security News" --days 15          # app stopped or running
+docker compose run --rm pulse python server.py --backfill "Cyber Security News" --days 15
+```
+
+- `--days` can be 1–30 (default 15). The source name is the one shown in *Manage sources*; an unknown name lists the available sources.
+- It follows WordPress-style feed pages with a short pause between requests, and stops when the window is covered, the site has no more pages, or a page repeats (feeds without paging). Google News fallbacks cannot be paged, so for those it collects what one query returns.
+- Unlike a refresh, it is **not limited** by the per-source article count. Like a refresh, it adds **only articles not already stored**, writes one refresh-log line (kind `backfill (N days)`, with the publication-day breakdown), and tags the articles it adds with the run's identifier.
+
+### Note on the daily limit
+
+With the same configuration as the other sources (10 articles per refresh), the daily automatic refresh will keep the newest **10** Cyber Security News articles each night. The site currently publishes roughly 20–40 a day on weekdays, so to capture more of them, raise that source's **Articles** value in *Manage sources* (up to 50).
+
+### Engineering
+
+- `Collector` can now backfill (`_backfill_entries`), and `Jobs.start(..., backfill=True)` runs it as a normal, logged job. The refresh log labels such a run `backfill (N days)`.
+- Added 6 tests (98 in total). They cover paging up to the window with the per-refresh cap ignored, a normal refresh still reading only page 1 with its cap, stopping when pages end or repeat, logging, tagging and no duplicates, the command refusing unknown sources and invalid `--days`, and the new default source.
 
 ## Version 4.2 · 2026-10-19 — Collected vs published: chart switch and publication days in the log
 

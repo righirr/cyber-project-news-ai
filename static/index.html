@@ -8,7 +8,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&family=Instrument+Serif:ital@0;1&display=swap">
   <link rel="stylesheet" href="styles.css">
   <script src="theme.js"></script>
   <script src="chart.js" defer></script>
@@ -86,6 +86,7 @@
         <label class="sort"><span class="visually-hidden">Sort by</span>
           <select id="sort"><option value="">Best order</option><option value="newest">Newest first</option><option value="relevance">Most relevant</option></select>
         </label>
+        <button class="btn btn-ghost clear-filters" id="clearFilters" type="button" title="Show all collected news: clears the calendar day, search, topic and source filters and the time range">✕ Clear filters</button>
       </div>
     </nav>
 
@@ -127,6 +128,7 @@
           <p class="result-count" id="resultCount" aria-live="polite"></p>
         </div>
         <div class="new-only" id="newOnlyNotice" role="status" hidden></div>
+        <div class="new-only day-notice" id="dayNotice" role="status" hidden></div>
         <div class="active-filters" id="activeFilters"></div>
         <div class="grid" id="grid" aria-busy="true"></div>
         <div class="empty" id="empty" hidden></div>
@@ -138,7 +140,7 @@
   <footer class="footer">
     <div class="shell footer-inner">
       <p>Summaries come from publisher feeds, article pages or Claude — always validate against the original advisory before acting.</p>
-      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v4.2</span></a></p>
+      <p><a href="RELEASE_NOTES.md" target="_blank" rel="noopener">Release notes · <span id="versionLabel">v4.5</span></a></p>
     </div>
   </footer>
 
@@ -195,6 +197,25 @@
         <figcaption>I. Ingest the avalanche · II. Distil with a model · III. Index as ordered strata</figcaption>
       </figure>
       <p class="about-intro">A local cyber-intelligence briefing. It collects recent reporting from the sources you configure, summarises and classifies each article, and stores everything in a full-text index you can search and filter by time, topic and source.</p>
+      <section class="about-block cal-block" aria-labelledby="calTitle">
+        <div class="cal-head">
+          <h3 id="calTitle">Daily news calendar</h3>
+          <div class="segmented cal-basis" id="calBasis" role="group" aria-label="Shade and open days by"></div>
+        </div>
+        <p class="hint">How many articles were <strong>published</strong> and <strong>collected</strong> on each day. The switch chooses which number shades the days; <strong>click a day to list its articles</strong>.</p>
+        <div class="cal-nav">
+          <button class="icon-btn small" id="calPrev" type="button" aria-label="Previous month">‹</button>
+          <strong class="cal-month" id="calMonth" aria-live="polite">–</strong>
+          <button class="icon-btn small" id="calNext" type="button" aria-label="Next month">›</button>
+          <button class="link-btn" id="calToday" type="button">Today</button>
+          <span class="cal-total" id="calTotal"></span>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-legend" aria-hidden="true">
+          <span><i class="sw none"></i>No articles</span><span class="cal-levels" id="calLevels"></span><span><i class="sw today"></i>Today</span>
+          <span class="cal-key" id="calKey"></span>
+        </div>
+      </section>
       <section class="about-block data-block" aria-labelledby="aboutDataTitle">
         <h3 id="aboutDataTitle">Your data is kept</h3>
         <p>Every collected article is saved in a SQLite database and is still there after you stop the app, restart it, reboot the server or rebuild the Docker image — no need to collect again.</p>
@@ -232,6 +253,10 @@
         <section class="about-block">
           <h3>What’s new</h3>
           <ul>
+            <li><strong>4.5</strong>: a <em>Clear filters</em> button in the filter bar returns to all collected news in one click.</li>
+            <li><strong>4.4.1</strong>: calendar days coloured green, yellow, orange or red by how many articles they have; day numbers in a larger serif type.</li>
+            <li><strong>4.4</strong>: the daily news calendar above — articles published and collected each day; click a day to list them.</li>
+            <li><strong>4.3</strong>: new source <em>Cyber Security News</em> (cybersecuritynews.com) with its last 15 days of news, and a <code>--backfill</code> command to load a source’s history.</li>
             <li><strong>4.2</strong>: the chart can count news by the day it was <em>collected</em> (matches the refresh log) or <em>published</em>; log lines list the publication days of the new articles.</li>
             <li><strong>4.1</strong>: an illustration of what the application does opens this dialog.</li>
             <li><strong>4.0.1</strong>: all collected articles are easy to reach: a clear “new articles only” banner with a <em>Show all</em> button, clickable statistics, and 100 articles per page.</li>

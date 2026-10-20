@@ -50,6 +50,10 @@ def main():
                         help='extra hostname/IP browsers may use (repeatable; also PULSE_ALLOWED_HOSTS, comma-separated)')
     parser.add_argument('--db', default=os.environ.get('PULSE_DB', ROOT / 'data' / 'pulse.db'),
                         help='SQLite database path (default: data/pulse.db)')
+    parser.add_argument('--backfill', metavar='SOURCE',
+                        help='collect every article of SOURCE (name as in Manage sources) from the last --days '
+                             'days, following the feed pages, then exit')
+    parser.add_argument('--days', type=int, default=15, help='window for --backfill (1-30, default 15)')
     parser.add_argument('--backup', metavar='FILE',
                         help='write a consistent copy of the database to FILE and exit (safe while the app runs)')
     parser.add_argument('--verbose', action='store_true', help='log every request')
@@ -69,6 +73,8 @@ def main():
     storage_label = os.environ.get('PULSE_STORAGE_LABEL') or _display_path(db_path)
     refresh_log = RefreshLog(os.environ.get('PULSE_REFRESH_LOG') or db_path.parent / 'refresh.log')
     jobs = Jobs(Collector(store, ai), store, refresh_log=refresh_log)
+    if args.backfill:
+        raise SystemExit(run_backfill(store, jobs, args.backfill, args.days))
     scheduler = DailyScheduler(store, jobs, refresh_log=refresh_log)
     app = App(store, ai, jobs, storage_label=storage_label, scheduler=scheduler, refresh_log=refresh_log)
     try:
@@ -117,6 +123,33 @@ def main():
     finally:
         scheduler.stop()
         shutdown(server, app, store)
+
+
+def run_backfill(store, jobs, name, days):
+    """Command-line backfill: one logged job for one source, without starting the web server."""
+    import time
+    if not 1 <= days <= 30:
+        print('--days must be between 1 and 30')
+        return 2
+    sources = {s['name'].lower(): s for s in store.list_sources()}
+    source = sources.get(name.strip().lower())
+    if not source:
+        print(f'No source named "{name}". Sources: ' + ', '.join(s['name'] for s in sources.values()))
+        return 2
+    before = store.storage_info()['articles']
+    print(f'Backfilling "{source["name"]}" for the last {days} days (following feed pages)…', flush=True)
+    job = jobs.start([source], days, 'backfill', backfill=True)
+    while (job := jobs.get(job['id']))['status'] == 'running':
+        time.sleep(0.5)
+    entry = job['sources'][0]
+    if job['status'] != 'done' or entry['state'] == 'error':
+        print(f'Backfill failed: {entry["error"] or job["error"]}')
+        return 1
+    print(f'  {entry["found"]} articles in the window ({entry["off_topic"]} off-topic skipped), '
+          f'{job["added"]} new — database {before} → {store.storage_info()["articles"]} articles.')
+    print(f'  Logged in the refresh log (refresh id {job["run"]}).')
+    store.checkpoint()
+    return 0
 
 
 def _raise_interrupt(signum, frame):
